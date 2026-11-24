@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "육식사관학교 관리",
+  title: "잉잉관리자",
   description: "지점 · 일정 · 근태 · 급여 관리",
 };
 

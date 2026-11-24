@@ -1,9 +1,11 @@
 import { ImageResponse } from "next/og";
+import { BRAND_FONT_NAME, loadBrandFont } from "@/lib/brand-font";
 
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
-export default function Icon() {
+export default async function Icon() {
+  const font = await loadBrandFont();
   return new ImageResponse(
     (
       <div
@@ -16,21 +18,24 @@ export default function Icon() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          fontFamily: "sans-serif",
+          fontFamily: BRAND_FONT_NAME,
         }}
       >
         <div
           style={{
-            width: 20,
-            height: 3,
+            width: 18,
+            height: 2,
             background: "#d4b483",
             borderRadius: 2,
-            marginBottom: 3,
+            marginBottom: 2,
           }}
         />
-        <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1, letterSpacing: -0.5 }}>64</div>
+        <div style={{ fontSize: 11, fontWeight: 700, lineHeight: 1 }}>잉잉</div>
       </div>
     ),
-    { ...size },
+    {
+      ...size,
+      fonts: [{ name: BRAND_FONT_NAME, data: font, weight: 700, style: "normal" }],
+    },
   );
 }

@@ -36,7 +36,7 @@ export function LoginForm() {
       <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl">
         <div className="flex flex-col items-center bg-blue-700 px-6 py-8 text-center text-white">
           <BrandMark size={56} />
-          <h1 className="mt-3 text-2xl font-bold">육식사관학교</h1>
+          <h1 className="mt-3 text-2xl font-bold">잉잉관리자</h1>
           <p className="mt-1 text-sm text-blue-100">일정 · 근태 · 지점 관리</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4 p-6">

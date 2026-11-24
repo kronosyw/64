@@ -12,7 +12,7 @@ export function BrandMark({ size = 32, className }: Props) {
       viewBox="0 0 32 32"
       className={className}
       role="img"
-      aria-label="64"
+      aria-label="잉잉관리자"
     >
       <rect width="32" height="32" rx="6" fill="#0c2340" />
       <rect x="6" y="6" width="20" height="2.5" rx="1" fill="#d4b483" />
@@ -21,11 +21,11 @@ export function BrandMark({ size = 32, className }: Props) {
         y="23.5"
         textAnchor="middle"
         fill="#f8fafc"
-        fontSize="15"
+        fontSize="10"
         fontWeight="700"
         fontFamily="ui-sans-serif, system-ui, sans-serif"
       >
-        64
+        잉잉
       </text>
     </svg>
   );

@@ -38,7 +38,7 @@ export function AppShell({ children, name, role, branchName }: Props) {
             <BrandMark size={32} />
             <div>
               <Link href="/" className="text-lg font-bold text-blue-800">
-                육식사관학교
+                잉잉관리자
               </Link>
               <p className="text-xs text-slate-500">
                 {name} · {ROLE_LABEL[role]}
