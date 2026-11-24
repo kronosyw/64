@@ -2,6 +2,9 @@
 
 SKADI PHP `/64`와 분리된 Next.js 앱입니다.
 
+- **전체 구조·개발 가이드:** [docs/ARCHITECTURE_AND_DEV_GUIDE.md](docs/ARCHITECTURE_AND_DEV_GUIDE.md)
+- **배포:** [DEPLOY.md](DEPLOY.md)
+
 ## 스택
 
 - Next.js App Router + TypeScript
