@@ -3,7 +3,7 @@ type Props = {
   className?: string;
 };
 
-/** 관리자 프로그램 마크. 탭 아이콘(icon.tsx)과 같은 형태. */
+/** 잉 글자를 도형으로 줄인 마크. 파비콘과 같은 형태. */
 export function BrandMark({ size = 32, className }: Props) {
   return (
     <svg
@@ -14,19 +14,10 @@ export function BrandMark({ size = 32, className }: Props) {
       role="img"
       aria-label="잉잉관리자"
     >
-      <rect width="32" height="32" rx="6" fill="#0c2340" />
-      <rect x="6" y="6" width="20" height="2.5" rx="1" fill="#d4b483" />
-      <text
-        x="16"
-        y="23.5"
-        textAnchor="middle"
-        fill="#f8fafc"
-        fontSize="10"
-        fontWeight="700"
-        fontFamily="ui-sans-serif, system-ui, sans-serif"
-      >
-        잉잉
-      </text>
+      <rect width="32" height="32" rx="7" fill="#0c2340" />
+      <circle cx="11.2" cy="10.2" r="3.75" fill="none" stroke="#f7f4ec" strokeWidth="1.7" />
+      <rect x="19.4" y="6.2" width="2.8" height="10.4" rx="1.3" fill="#f7f4ec" />
+      <circle cx="13.6" cy="23" r="4.3" fill="none" stroke="#e8c97a" strokeWidth="1.8" />
     </svg>
   );
 }
