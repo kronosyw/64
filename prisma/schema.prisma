@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  STAFF
+  PARTTIME
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  RESIGNED
+}
+
+enum InsuranceType {
+  FOUR_INSURANCE
+  THREE_POINT_THREE
+}
+
+enum WorkType {
+  OPEN
+  CLOSE
+  OPEN_CLOSE
+  EVENING_PT
+  FULL_PT
+  OFF
+}
+
+enum AttendanceStatus {
+  NORMAL
+  LATE
+  EARLY_LEAVE
+  ABSENT
+  HOLIDAY
+}
+
+enum PayrollTaxType {
+  PRE_TAX
+  POST_TAX
+}
+
+enum PayrollStatus {
+  DRAFT
+  DONE
+}
+
+enum EmployeeCategory {
+  FULL_TIME_4INS
+  BUSINESS_INCOME_33
+  DAILY
+}
+
+enum StoreType {
+  OWN
+  COMPETITOR
+}
+
+model Branch {
+  id          Int       @id @default(autoincrement())
+  name        String
+  code        String?   @unique
+  address     String?
+  phone       String?
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  employees         Employee[]
+  ownerAssignments  EmployeeBranch[]
+  schedules         Schedule[]
+  memos             Memo[]
+  attendances       Attendance[]
+  payrolls          Payroll[]
+  adStores          AdStore[]
+  adCosts           AdCost[]
+  adExposures       AdExposure[]
+
+  @@map("branches")
+}
+
+model Employee {
+  id               Int              @id @default(autoincrement())
+  name             String
+  role             Role
+  loginId          String           @unique @map("login_id")
+  passwordHash     String           @map("password_hash")
+  phone            String?
+  ssn              String?
+  hireDate         DateTime?        @map("hire_date") @db.Date
+  healthCertExpire DateTime?        @map("health_cert_expire") @db.Date
+  bankName         String?          @map("bank_name")
+  accountNumber    String?          @map("account_number")
+  accountHolder    String?          @map("account_holder")
+  monthlySalary    Int?             @map("monthly_salary")
+  insuranceType    InsuranceType    @default(FOUR_INSURANCE) @map("insurance_type")
+  status           EmploymentStatus @default(ACTIVE)
+  notes            String?
+  branchId         Int?             @map("branch_id")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  branch            Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  ownerBranches     EmployeeBranch[]
+  schedules         Schedule[]
+  attendances       Attendance[]
+  payrollItems      PayrollItem[]
+
+  @@index([branchId])
+  @@index([role, status])
+  @@map("employees")
+}
+
+model EmployeeBranch {
+  id         Int      @id @default(autoincrement())
+  employeeId Int      @map("employee_id")
+  branchId   Int      @map("branch_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, branchId])
+  @@map("employee_branches")
+}
+
+model Schedule {
+  id           Int       @id @default(autoincrement())
+  branchId     Int       @map("branch_id")
+  employeeId   Int       @map("employee_id")
+  employeeName String    @map("employee_name")
+  workType     WorkType  @map("work_type")
+  workDate     DateTime  @map("work_date") @db.Date
+  startTime    String?   @map("start_time")
+  endTime      String?   @map("end_time")
+  workHours    Decimal?  @map("work_hours") @db.Decimal(5, 2)
+  createdBy    String?   @map("created_by")
+  updatedBy    String?   @map("updated_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([branchId, workDate])
+  @@index([employeeId, workDate])
+  @@map("schedules")
+}
+
+model Memo {
+  id           Int      @id @default(autoincrement())
+  branchId     Int      @map("branch_id")
+  content      String   @map("memo_content")
+  author       String
+  isImportant  Boolean  @default(false) @map("is_important")
+  isCompleted  Boolean  @default(false) @map("is_completed")
+  parentMemoId Int?     @map("parent_memo_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  branch  Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  parent  Memo?  @relation("MemoReplies", fields: [parentMemoId], references: [id], onDelete: Cascade)
+  replies Memo[] @relation("MemoReplies")
+
+  @@index([branchId])
+  @@map("memos")
+}
+
+model Attendance {
+  id                  Int              @id @default(autoincrement())
+  branchId            Int              @map("branch_id")
+  employeeId          Int              @map("employee_id")
+  employeeName        String           @map("employee_name")
+  attendanceDate      DateTime         @map("attendance_date") @db.Date
+  scheduledStartTime  String?          @map("scheduled_start_time")
+  scheduledEndTime    String?          @map("scheduled_end_time")
+  actualStartTime     String?          @map("actual_start_time")
+  actualEndTime       String?          @map("actual_end_time")
+  status              AttendanceStatus @default(NORMAL) @map("attendance_status")
+  lateMinutes         Int              @default(0) @map("late_minutes")
+  earlyLeaveMinutes   Int              @default(0) @map("early_leave_minutes")
+  absenceReason       String?          @map("absence_reason")
+  workType            String?          @map("work_type")
+  memo                String?
+  createdBy           String?          @map("created_by")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, employeeId, attendanceDate])
+  @@index([branchId, attendanceDate])
+  @@map("attendances")
+}
+
+model Payroll {
+  id        Int            @id @default(autoincrement())
+  branchId  Int            @map("branch_id")
+  year      Int
+  month     Int
+  taxType   PayrollTaxType @default(PRE_TAX) @map("tax_type")
+  status    PayrollStatus  @default(DRAFT)
+  memo      String?
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  branch Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  items  PayrollItem[]
+
+  @@unique([branchId, year, month])
+  @@map("payrolls")
+}
+
+model PayrollItem {
+  id               Int              @id @default(autoincrement())
+  payrollId        Int              @map("payroll_id")
+  employeeId       Int?             @map("employee_id")
+  sortOrder        Int              @default(0) @map("sort_order")
+  employeeCategory EmployeeCategory @map("employee_category")
+  employeeName     String           @map("employee_name")
+  ssn              String?
+  hireDate         DateTime?        @map("hire_date") @db.Date
+  monthlySalary    Int?             @map("monthly_salary")
+  actualHours      Decimal          @default(0) @map("actual_hours") @db.Decimal(6, 2)
+  isFullAttendance Boolean          @default(false) @map("is_full_attendance")
+  basePay          Int              @default(0) @map("base_pay")
+  overtimePay      Int              @default(0) @map("overtime_pay")
+  totalPay         Int              @default(0) @map("total_pay")
+  taxAmount        Int              @default(0) @map("tax_amount")
+  netPay           Int              @default(0) @map("net_pay")
+  workDays         Int              @default(0) @map("work_days")
+  offDays          Int              @default(0) @map("off_days")
+  weekMode         Int              @default(5) @map("week_mode")
+  overtimeHours    Decimal          @default(0) @map("overtime_hours") @db.Decimal(6, 2)
+  isHired          Boolean          @default(false) @map("is_hired")
+  isRetired        Boolean          @default(false) @map("is_retired")
+  itemNotes        String?          @map("item_notes")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  payroll  Payroll   @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([payrollId])
+  @@map("payroll_items")
+}
+
+model AdPlatform {
+  id        Int      @id @default(autoincrement())
+  name      String
+  code      String   @unique
+  colorCode String   @default("#3B82F6") @map("color_code")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  stores AdStore[]
+  costs  AdCost[]
+
+  @@map("ad_platforms")
+}
+
+model AdStore {
+  id        Int       @id @default(autoincrement())
+  branchId  Int       @map("branch_id")
+  platformId Int      @map("platform_id")
+  name      String    @map("store_name")
+  storeType StoreType @default(COMPETITOR) @map("store_type")
+  address   String?
+  notes     String?
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  branch   Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  platform AdPlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  reviews  AdReview[]
+  costs    AdCost[]
+
+  @@index([branchId])
+  @@map("ad_stores")
+}
+
+model AdReview {
+  id          Int      @id @default(autoincrement())
+  storeId     Int      @map("store_id")
+  reviewDate  DateTime @map("review_date") @db.Date
+  reviewCount Int      @default(0) @map("review_count")
+  ratingAvg   Decimal? @map("rating_avg") @db.Decimal(3, 2)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  store AdStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, reviewDate])
+  @@map("ad_reviews")
+}
+
+model AdCost {
+  id          Int      @id @default(autoincrement())
+  branchId    Int      @map("branch_id")
+  platformId  Int      @map("platform_id")
+  storeId     Int      @map("store_id")
+  costDate    DateTime @map("cost_date") @db.Date
+  adSpend     Int      @default(0) @map("ad_spend")
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  orders      Int      @default(0)
+  orderAmount Int      @default(0) @map("order_amount")
+  ctr         Decimal  @default(0) @db.Decimal(8, 2)
+  cvr         Decimal  @default(0) @db.Decimal(8, 2)
+  cpc         Int      @default(0)
+  cpa         Int      @default(0)
+  roas        Decimal  @default(0) @db.Decimal(8, 2)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  branch   Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  platform AdPlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  store    AdStore    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, costDate])
+  @@index([branchId, costDate])
+  @@map("ad_costs")
+}
+
+model AdExposure {
+  id           Int      @id @default(autoincrement())
+  branchId     Int      @map("branch_id")
+  regionName   String   @map("region_name")
+  exposureDate DateTime @map("exposure_date") @db.Date
+  keyword      String?
+  rank         Int?
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([branchId, exposureDate])
+  @@map("ad_exposures")
+}

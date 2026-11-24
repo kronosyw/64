@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 육식사관학교 (64) 독립 관리 사이트
 
-## Getting Started
+SKADI PHP `/64`와 분리된 Next.js 앱입니다.
 
-First, run the development server:
+## 스택
+
+- Next.js App Router + TypeScript
+- Auth.js (Credentials) + bcrypt
+- Prisma + PostgreSQL (Neon / Prisma Postgres / Vercel)
+- Vercel 배포
+
+## 역할
+
+| 등급 | 권한 |
+|------|------|
+| 사장 (최대 2명) | 배정된 여러 지점 운영, 지점 등록, 사장 계정 생성 |
+| 지점장 | 자기 지점 일정/메모/근태/직원/급여/통계/광고 |
+| 직원·파트타임 | 자기 지점 일정 조회만 (메모 숨김) |
+
+## 로컬 실행
 
 ```bash
+cp .env.example .env
+# DATABASE_URL, AUTH_SECRET 설정
+
+npm install
+npx prisma migrate dev
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+시드 기본 계정: `SEED_OWNER_LOGIN_ID` / `SEED_OWNER_PASSWORD` (기본 `owner` / `change-me-now`)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Vercel + Neon
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. [Neon](https://neon.tech) 또는 Vercel Storage → Postgres 생성
+2. Vercel 프로젝트에 GitHub 저장소 연결
+3. Environment Variables
+   - `DATABASE_URL`
+   - `AUTH_SECRET` (`openssl rand -base64 32`)
+   - `AUTH_TRUST_HOST=true`
+   - (선택) `AUTH_URL=https://your-domain.com`
+4. Build Command: `prisma generate && next build`
+5. 배포 후 `npx prisma migrate deploy` 및 `npm run db:seed` (로컬에서 production URL로 1회)
 
-## Learn More
+## 임시 Prisma Postgres claim
 
-To learn more about Next.js, take a look at the following resources:
+개발용 임시 DB를 썼다면 만료 전에 claim 하세요. 영구 Neon으로 교체하는 것을 권장합니다.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## GitHub
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+권장 원격: `https://github.com/ingyw/64`
