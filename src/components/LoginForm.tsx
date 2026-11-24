@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { BrandMark } from "@/components/BrandMark";
 
 export function LoginForm() {
   const router = useRouter();
@@ -33,8 +34,9 @@ export function LoginForm() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-900 to-slate-900 px-4">
       <div className="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl">
-        <div className="bg-blue-700 px-6 py-8 text-center text-white">
-          <h1 className="text-2xl font-bold">육식사관학교</h1>
+        <div className="flex flex-col items-center bg-blue-700 px-6 py-8 text-center text-white">
+          <BrandMark size={56} />
+          <h1 className="mt-3 text-2xl font-bold">육식사관학교</h1>
           <p className="mt-1 text-sm text-blue-100">일정 · 근태 · 지점 관리</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4 p-6">
