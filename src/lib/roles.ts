@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 
 export const ROLE_LABEL: Record<Role, string> = {
+  SUPERADMIN: "최고관리자",
   OWNER: "사장",
   MANAGER: "지점장",
   STAFF: "직원",
@@ -18,12 +19,21 @@ export const WORK_TYPE_LABEL = {
 
 export type WorkTypeKey = keyof typeof WORK_TYPE_LABEL;
 
+export function isSuperAdmin(role: Role) {
+  return role === Role.SUPERADMIN;
+}
+
 export function isOwner(role: Role) {
   return role === Role.OWNER;
 }
 
+/** 사장 권한과 최고관리자. 최고관리자는 지점 제한 없이 전체를 본다. */
+export function isOwnerLevel(role: Role) {
+  return role === Role.OWNER || role === Role.SUPERADMIN;
+}
+
 export function isManagerOrOwner(role: Role) {
-  return role === Role.OWNER || role === Role.MANAGER;
+  return role === Role.SUPERADMIN || role === Role.OWNER || role === Role.MANAGER;
 }
 
 export function canEditSchedule(role: Role) {
@@ -35,7 +45,7 @@ export function canViewMemo(role: Role) {
 }
 
 export function canManageBranches(role: Role) {
-  return isOwner(role);
+  return isOwnerLevel(role);
 }
 
 export function canAccessOps(role: Role) {

@@ -43,7 +43,7 @@ export default async function HomePage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {session.user.role === Role.OWNER ? (
+          {session.user.role === Role.OWNER || session.user.role === Role.SUPERADMIN ? (
             <Suspense>
               <BranchSwitcher
                 branches={branches.map((b) => ({ id: b.id, name: b.name }))}

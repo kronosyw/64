@@ -61,7 +61,10 @@ export function ScheduleBoard({
       const eData = await eRes.json();
       if (eData.success) {
         setEmployees(
-          eData.employees.filter((e: Employee & { status: string }) => e.status === "ACTIVE" && e.role !== "OWNER"),
+          eData.employees.filter(
+            (e: Employee & { status: string }) =>
+              e.status === "ACTIVE" && e.role !== "OWNER" && e.role !== "SUPERADMIN",
+          ),
         );
       }
     }

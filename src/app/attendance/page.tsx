@@ -48,7 +48,9 @@ export default function AttendancePage() {
     const eData = await eRes.json();
     if (aData.success) setRows(aData.attendances);
     if (eData.success) {
-      setEmployees(eData.employees.filter((e: Employee) => e.status === "ACTIVE" && e.role !== "OWNER"));
+      setEmployees(
+        eData.employees.filter((e: Employee) => e.status === "ACTIVE" && e.role !== "OWNER" && e.role !== "SUPERADMIN"),
+      );
     }
   }
 

@@ -7,6 +7,9 @@ async function main() {
   const loginId = process.env.SEED_OWNER_LOGIN_ID || "owner";
   const password = process.env.SEED_OWNER_PASSWORD || "change-me-now";
   const name = process.env.SEED_OWNER_NAME || "사장";
+  const superLoginId = process.env.SEED_SUPER_LOGIN_ID || "admin";
+  const superPassword = process.env.SEED_SUPER_PASSWORD || password;
+  const superName = process.env.SEED_SUPER_NAME || "최고관리자";
   const branchName = process.env.SEED_BRANCH_NAME || "본점";
   const branchCode = process.env.SEED_BRANCH_CODE || "HQ01";
 
@@ -41,6 +44,32 @@ async function main() {
     create: { employeeId: owner.id, branchId: branch.id },
   });
 
+  const superHash = await bcrypt.hash(superPassword, 10);
+  const existingSuper = await prisma.employee.findUnique({ where: { loginId: superLoginId } });
+  if (existingSuper) {
+    await prisma.employee.update({
+      where: { id: existingSuper.id },
+      data: {
+        name: superName,
+        role: Role.SUPERADMIN,
+        passwordHash: superHash,
+        branchId: null,
+        status: "ACTIVE",
+      },
+    });
+  } else {
+    await prisma.employee.create({
+      data: {
+        name: superName,
+        role: Role.SUPERADMIN,
+        loginId: superLoginId,
+        passwordHash: superHash,
+        branchId: null,
+        status: "ACTIVE",
+      },
+    });
+  }
+
   await prisma.adPlatform.upsert({
     where: { code: "baemin" },
     update: {},
@@ -52,7 +81,7 @@ async function main() {
     create: { name: "쿠팡이츠", code: "coupang", colorCode: "#E31837", sortOrder: 2 },
   });
 
-  console.log(`Seeded owner=${loginId} branch=${branch.name}`);
+  console.log(`Seeded super=${superLoginId} owner=${loginId} branch=${branch.name}`);
 }
 
 main()

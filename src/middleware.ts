@@ -36,13 +36,13 @@ export async function middleware(req: NextRequest) {
   const ownerOnly = ["/branches"];
 
   if (token && opsOnly.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
-    if (role !== "OWNER" && role !== "MANAGER") {
+    if (role !== "SUPERADMIN" && role !== "OWNER" && role !== "MANAGER") {
       return NextResponse.redirect(new URL("/", req.url));
     }
   }
 
   if (token && ownerOnly.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
-    if (role !== "OWNER") {
+    if (role !== "SUPERADMIN" && role !== "OWNER") {
       return NextResponse.redirect(new URL("/", req.url));
     }
   }

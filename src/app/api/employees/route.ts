@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
     });
 
     return jsonOk({
+      actorRole: session.user.role,
       employees: employees.map((e) => ({
         ...e,
         passwordHash: undefined,
@@ -90,11 +91,15 @@ export async function PATCH(req: NextRequest) {
     });
     if (!target) return jsonError("직원을 찾을 수 없습니다.", 404);
 
+    if (target.role === Role.SUPERADMIN && session.user.role !== Role.SUPERADMIN) {
+      return jsonError("권한이 없습니다.", 403);
+    }
+
     if (session.user.role === Role.MANAGER) {
       if (!target.branchId || !session.user.branchIds.includes(target.branchId)) {
         return jsonError("권한이 없습니다.", 403);
       }
-      if (target.role === Role.OWNER || target.role === Role.MANAGER) {
+      if (target.role === Role.OWNER || target.role === Role.MANAGER || target.role === Role.SUPERADMIN) {
         return jsonError("권한이 없습니다.", 403);
       }
     }
@@ -105,18 +110,26 @@ export async function PATCH(req: NextRequest) {
     if (body.status !== undefined) data.status = body.status;
     if (body.monthlySalary !== undefined) data.monthlySalary = body.monthlySalary ? Number(body.monthlySalary) : null;
     if (body.notes !== undefined) data.notes = body.notes || null;
-    if (body.branchId !== undefined && target.role !== Role.OWNER) {
+    if (body.branchId !== undefined && target.role !== Role.OWNER && target.role !== Role.SUPERADMIN) {
       const branchId = Number(body.branchId);
-      if (!session.user.branchIds.includes(branchId)) return jsonError("지점 권한 없음", 403);
+      if (session.user.role !== Role.SUPERADMIN && !session.user.branchIds.includes(branchId)) {
+        return jsonError("지점 권한 없음", 403);
+      }
       data.branchId = branchId;
     }
 
     const employee = await prisma.employee.update({ where: { id }, data });
 
-    if (target.role === Role.OWNER && Array.isArray(body.ownerBranchIds) && session.user.role === Role.OWNER) {
+    if (
+      target.role === Role.OWNER &&
+      Array.isArray(body.ownerBranchIds) &&
+      (session.user.role === Role.OWNER || session.user.role === Role.SUPERADMIN)
+    ) {
       const ids = body.ownerBranchIds.map((n: unknown) => Number(n));
       for (const bid of ids) {
-        if (!session.user.branchIds.includes(bid)) return jsonError("배정 불가 지점", 403);
+        if (session.user.role !== Role.SUPERADMIN && !session.user.branchIds.includes(bid)) {
+          return jsonError("배정 불가 지점", 403);
+        }
       }
       await prisma.employeeBranch.deleteMany({ where: { employeeId: id } });
       await prisma.employeeBranch.createMany({

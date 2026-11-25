@@ -26,12 +26,16 @@ export default function EmployeesPage() {
     ownerBranchIds: [] as number[],
   });
   const [message, setMessage] = useState("");
+  const [actorRole, setActorRole] = useState("");
 
   async function load() {
     const [eRes, bRes] = await Promise.all([fetch("/api/employees"), fetch("/api/branches")]);
     const eData = await eRes.json();
     const bData = await bRes.json();
-    if (eData.success) setEmployees(eData.employees);
+    if (eData.success) {
+      setEmployees(eData.employees);
+      if (eData.actorRole) setActorRole(eData.actorRole);
+    }
     if (bData.success) {
       setBranches(bData.branches);
       if (!form.branchId && bData.branches[0]) {
@@ -52,7 +56,7 @@ export default function EmployeesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
-        branchId: form.role === "OWNER" ? null : Number(form.branchId),
+        branchId: form.role === "OWNER" || form.role === "SUPERADMIN" ? null : Number(form.branchId),
         ownerBranchIds: form.role === "OWNER" ? form.ownerBranchIds : [],
       }),
     });
@@ -104,6 +108,7 @@ export default function EmployeesPage() {
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value })}
           >
+            {actorRole === "SUPERADMIN" ? <option value="SUPERADMIN">최고관리자</option> : null}
             <option value="OWNER">사장</option>
             <option value="MANAGER">지점장</option>
             <option value="STAFF">직원</option>
@@ -126,7 +131,9 @@ export default function EmployeesPage() {
           />
         </div>
 
-        {form.role === "OWNER" ? (
+        {form.role === "SUPERADMIN" ? (
+          <p className="text-sm text-slate-500">최고관리자는 모든 지점의 일정, 직원, 근태, 급여, 광고를 봅니다.</p>
+        ) : form.role === "OWNER" ? (
           <div className="flex flex-wrap gap-2">
             {branches.map((b) => (
               <label key={b.id} className="flex items-center gap-1 text-sm">
@@ -177,9 +184,11 @@ export default function EmployeesPage() {
                 <td className="px-3 py-2">{e.roleLabel}</td>
                 <td className="px-3 py-2">{e.loginId}</td>
                 <td className="px-3 py-2">
-                  {e.role === "OWNER"
-                    ? e.ownerBranches?.map((ob) => ob.branch.name).join(", ")
-                    : e.branch?.name}
+                  {e.role === "SUPERADMIN"
+                    ? "전체"
+                    : e.role === "OWNER"
+                      ? e.ownerBranches?.map((ob) => ob.branch.name).join(", ")
+                      : e.branch?.name}
                 </td>
                 <td className="px-3 py-2">{e.status === "ACTIVE" ? "근무" : "퇴사"}</td>
               </tr>

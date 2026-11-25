@@ -32,6 +32,10 @@ declare module "next-auth/jwt" {
 }
 
 async function resolveBranchIds(employeeId: number, role: Role, branchId: number | null) {
+  if (role === Role.SUPERADMIN) {
+    const rows = await prisma.branch.findMany({ select: { id: true } });
+    return rows.map((r) => r.id);
+  }
   if (role === Role.OWNER) {
     const rows = await prisma.employeeBranch.findMany({
       where: { employeeId },

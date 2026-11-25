@@ -1,12 +1,14 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Role } from "@prisma/client";
 import { ensureBranch, jsonError, jsonOk, requireApiOps, requireApiOwner } from "@/lib/api";
 
 export async function GET() {
   try {
     const session = await requireApiOps();
+    const seeAll = session.user.role === Role.SUPERADMIN;
     const branches = await prisma.branch.findMany({
-      where: { id: { in: session.user.branchIds }, isActive: true },
+      where: seeAll ? {} : { id: { in: session.user.branchIds }, isActive: true },
       orderBy: { name: "asc" },
     });
     return jsonOk({ branches });

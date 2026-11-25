@@ -53,8 +53,14 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
     throw new Error("이름, 아이디, 비밀번호는 필수입니다.");
   }
 
+  const unrestricted = actorRole === Role.SUPERADMIN;
+
+  if (role === Role.SUPERADMIN && !unrestricted) {
+    throw new Error("최고관리자 계정은 최고관리자만 만들 수 있습니다.");
+  }
+
   if (actorRole === Role.MANAGER) {
-    if (role === Role.OWNER || role === Role.MANAGER) {
+    if (role === Role.OWNER || role === Role.MANAGER || role === Role.SUPERADMIN) {
       throw new Error("지점장은 직원·파트타임만 등록할 수 있습니다.");
     }
     if (!branchId || !actorBranchIds.includes(branchId)) {
@@ -62,22 +68,30 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
     }
   }
 
-  if (actorRole === Role.OWNER && role !== Role.OWNER) {
+  if (!unrestricted && actorRole === Role.OWNER && role !== Role.OWNER) {
     if (!branchId || !actorBranchIds.includes(branchId)) {
       throw new Error("배정된 지점만 선택할 수 있습니다.");
     }
   }
 
-  if (role === Role.OWNER) {
-    if (actorRole !== Role.OWNER) throw new Error("사장은 사장만 등록할 수 있습니다.");
+  if (role === Role.SUPERADMIN) {
+    // 소속 지점 없이 전 지점을 본다.
+  } else if (role === Role.OWNER) {
+    if (actorRole !== Role.OWNER && actorRole !== Role.SUPERADMIN) {
+      throw new Error("사장은 사장 또는 최고관리자만 등록할 수 있습니다.");
+    }
     const owners = await countActiveOwners();
     if (owners >= MAX_OWNERS) throw new Error("사장은 최대 2명까지 가능합니다.");
     if (!ownerBranchIds.length) throw new Error("사장 지점을 1개 이상 배정하세요.");
-    for (const id of ownerBranchIds) {
-      if (!actorBranchIds.includes(id)) throw new Error("배정할 수 없는 지점이 있습니다.");
+    if (!unrestricted) {
+      for (const id of ownerBranchIds) {
+        if (!actorBranchIds.includes(id)) throw new Error("배정할 수 없는 지점이 있습니다.");
+      }
     }
   } else if (!branchId) {
     throw new Error("소속 지점이 필요합니다.");
+  } else if (!unrestricted && !actorBranchIds.includes(branchId)) {
+    throw new Error("배정된 지점만 선택할 수 있습니다.");
   }
 
   const exists = await prisma.employee.findUnique({ where: { loginId } });
@@ -93,7 +107,7 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
         loginId: loginId.trim(),
         passwordHash,
         phone: phone || null,
-        branchId: role === Role.OWNER ? null : branchId!,
+        branchId: role === Role.OWNER || role === Role.SUPERADMIN ? null : branchId!,
         monthlySalary: monthlySalary ?? null,
         insuranceType:
           insuranceType ??
@@ -125,12 +139,11 @@ export async function updateOwnerBranches(employeeId: number, branchIds: number[
 }
 
 export function employeeListWhere(actorRole: Role, actorBranchIds: number[]): Prisma.EmployeeWhereInput {
+  if (actorRole === Role.SUPERADMIN) return {};
   if (actorRole === Role.OWNER) {
     return {
-      OR: [
-        { role: Role.OWNER },
-        { branchId: { in: actorBranchIds } },
-      ],
+      role: { not: Role.SUPERADMIN },
+      OR: [{ role: Role.OWNER }, { branchId: { in: actorBranchIds } }],
     };
   }
   return {

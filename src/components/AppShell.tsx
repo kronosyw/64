@@ -12,8 +12,8 @@ type Props = {
 };
 
 export function AppShell({ children, name, role, branchName }: Props) {
-  const isOps = role === Role.OWNER || role === Role.MANAGER;
-  const isOwner = role === Role.OWNER;
+  const isOps = role === Role.SUPERADMIN || role === Role.OWNER || role === Role.MANAGER;
+  const isOwner = role === Role.SUPERADMIN || role === Role.OWNER;
 
   const links = [
     { href: "/", label: "일정" },
