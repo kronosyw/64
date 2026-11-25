@@ -3,7 +3,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk, requireApiOps } from "@/lib/api";
 import { createEmployeeAccount, employeeListWhere } from "@/lib/employees";
-import { ROLE_LABEL } from "@/lib/roles";
+import { roleLabel } from "@/lib/roles";
 
 export async function GET(req: NextRequest) {
   try {
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       employees: employees.map((e) => ({
         ...e,
         passwordHash: undefined,
-        roleLabel: ROLE_LABEL[e.role],
+        roleLabel: roleLabel(e.role),
       })),
     });
   } catch (e) {

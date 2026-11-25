@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { Button, PageHeader, Panel, TableShell, TextInput, TextSelect } from "@/components/ui";
 
 type Attendance = {
   id: number;
@@ -78,67 +79,58 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <a href="/" className="text-sm text-blue-700">
-            ← 일정으로
-          </a>
-          <h1 className="mt-2 text-2xl font-bold">근태</h1>
-        </div>
-        <select
-          className="rounded-md border px-2 py-1.5 text-sm"
-          value={branchId ?? ""}
-          onChange={(e) => setBranchId(Number(e.target.value))}
-        >
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="근태"
+        actions={
+          <TextSelect className="w-auto" value={branchId ?? ""} onChange={(e) => setBranchId(Number(e.target.value))}>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </TextSelect>
+        }
+      />
 
-      <form onSubmit={onSubmit} className="grid gap-2 rounded-xl border bg-white p-4 sm:grid-cols-3">
-        <select
-          className="rounded-md border px-2 py-2"
-          value={form.employeeId}
-          onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-          required
-        >
-          <option value="">직원</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
-        <input
-          type="date"
-          className="rounded-md border px-2 py-2"
-          value={form.attendanceDate}
-          onChange={(e) => setForm({ ...form, attendanceDate: e.target.value })}
-        />
-        <input
-          type="time"
-          className="rounded-md border px-2 py-2"
-          value={form.actualStartTime}
-          onChange={(e) => setForm({ ...form, actualStartTime: e.target.value })}
-        />
-        <input
-          type="time"
-          className="rounded-md border px-2 py-2"
-          value={form.actualEndTime}
-          onChange={(e) => setForm({ ...form, actualEndTime: e.target.value })}
-        />
-        <button type="submit" className="rounded-md bg-blue-700 px-3 py-2 text-white sm:col-span-2">
-          저장
-        </button>
-      </form>
+      <Panel>
+        <form onSubmit={onSubmit} className="grid gap-2 sm:grid-cols-3">
+          <TextSelect
+            value={form.employeeId}
+            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+            required
+          >
+            <option value="">직원</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name}
+              </option>
+            ))}
+          </TextSelect>
+          <TextInput
+            type="date"
+            value={form.attendanceDate}
+            onChange={(e) => setForm({ ...form, attendanceDate: e.target.value })}
+          />
+          <TextInput
+            type="time"
+            value={form.actualStartTime}
+            onChange={(e) => setForm({ ...form, actualStartTime: e.target.value })}
+          />
+          <TextInput
+            type="time"
+            value={form.actualEndTime}
+            onChange={(e) => setForm({ ...form, actualEndTime: e.target.value })}
+          />
+          <Button type="submit" className="sm:col-span-2">
+            저장
+          </Button>
+        </form>
+      </Panel>
 
-      <div className="overflow-hidden rounded-xl border bg-white">
+      <TableShell>
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left">
+          <thead className="bg-paper text-left text-muted">
             <tr>
               <th className="px-3 py-2">날짜</th>
               <th className="px-3 py-2">이름</th>
@@ -150,18 +142,18 @@ export default function AttendancePage() {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="border-t">
-                <td className="px-3 py-2">{String(r.attendanceDate).slice(0, 10)}</td>
+              <tr key={r.id} className="border-t border-line">
+                <td className="px-3 py-2 font-mono">{String(r.attendanceDate).slice(0, 10)}</td>
                 <td className="px-3 py-2">{r.employeeName}</td>
-                <td className="px-3 py-2">{r.actualStartTime}</td>
-                <td className="px-3 py-2">{r.actualEndTime}</td>
+                <td className="px-3 py-2 font-mono">{r.actualStartTime}</td>
+                <td className="px-3 py-2 font-mono">{r.actualEndTime}</td>
                 <td className="px-3 py-2">{r.status}</td>
-                <td className="px-3 py-2">{r.lateMinutes}</td>
+                <td className="px-3 py-2 font-mono">{r.lateMinutes}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </TableShell>
     </div>
   );
 }

@@ -1,8 +1,7 @@
 import { Suspense } from "react";
-import { Role } from "@prisma/client";
-import { AppShell } from "@/components/AppShell";
 import { BranchSwitcher } from "@/components/BranchSwitcher";
 import { ScheduleBoard } from "@/components/ScheduleBoard";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { prisma } from "@/lib/prisma";
 import { canEditSchedule, canViewMemo } from "@/lib/roles";
 import { pickBranchId, requireSession } from "@/lib/session";
@@ -33,47 +32,43 @@ export default async function HomePage({
   const nextMonth = month === 12 ? 1 : month + 1;
   const nextYear = month === 12 ? year + 1 : year;
 
+  const canSwitchBranch = session.user.role === "OWNER" || session.user.role === "SUPERADMIN";
+
   return (
-    <AppShell name={session.user.name} role={session.user.role} branchName={current?.name}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold">일정관리</h1>
-          <p className="text-sm text-slate-500">
-            {year}년 {month}월
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {session.user.role === Role.OWNER || session.user.role === Role.SUPERADMIN ? (
-            <Suspense>
-              <BranchSwitcher
-                branches={branches.map((b) => ({ id: b.id, name: b.name }))}
-                currentBranchId={branchId}
-              />
-            </Suspense>
-          ) : (
-            <div className="text-sm text-slate-600">지점: {current?.name ?? "-"}</div>
-          )}
-          <div className="flex gap-2 text-sm">
+    <>
+      <PageHeader
+        title="일정관리"
+        description={`${year}년 ${month}월`}
+        actions={
+          <>
+            {canSwitchBranch ? (
+              <Suspense>
+                <BranchSwitcher
+                  branches={branches.map((b) => ({ id: b.id, name: b.name }))}
+                  currentBranchId={branchId}
+                />
+              </Suspense>
+            ) : (
+              <div className="text-sm text-muted">지점: {current?.name ?? "-"}</div>
+            )}
             <a
-              className="rounded-md border px-2 py-1"
+              className="rounded-btn border border-line bg-card px-2 py-1 text-sm text-ink"
               href={`/?branchId=${branchId}&year=${prevYear}&month=${prevMonth}`}
             >
               이전달
             </a>
             <a
-              className="rounded-md border px-2 py-1"
+              className="rounded-btn border border-line bg-card px-2 py-1 text-sm text-ink"
               href={`/?branchId=${branchId}&year=${nextYear}&month=${nextMonth}`}
             >
               다음달
             </a>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {!branchId ? (
-        <div className="rounded-xl border bg-white p-6 text-sm text-slate-600">
-          배정된 지점이 없습니다. 사장 계정에 지점을 배정하세요.
-        </div>
+        <EmptyState>배정된 지점이 없습니다. 사장 계정에 지점을 배정하세요.</EmptyState>
       ) : (
         <ScheduleBoard
           branchId={branchId}
@@ -83,6 +78,6 @@ export default async function HomePage({
           showMemo={canViewMemo(session.user.role)}
         />
       )}
-    </AppShell>
+    </>
   );
 }

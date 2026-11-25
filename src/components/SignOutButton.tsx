@@ -7,7 +7,7 @@ export function SignOutButton() {
     <button
       type="button"
       onClick={() => signOut({ callbackUrl: "/login" })}
-      className="rounded-md px-2.5 py-1.5 text-sm text-red-600 hover:bg-red-50"
+      className="rounded-btn px-2.5 py-1.5 text-sm text-paper/80 hover:bg-paper/10 hover:text-paper"
     >
       로그아웃
     </button>

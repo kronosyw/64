@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
 import { ensureBranch, jsonError, jsonOk, requireApiOps, requireApiOwner } from "@/lib/api";
+import { shiftRowsForBranch } from "@/lib/shift-options";
 
 export async function GET() {
   try {
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
     await prisma.employeeBranch.create({
       data: { employeeId: Number(session.user.id), branchId: branch.id },
     });
+    await prisma.branchShift.createMany({ data: shiftRowsForBranch(branch.id) });
 
     return jsonOk({ branch }, 201);
   } catch (e) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { Button, Message, PageHeader, Panel, TableShell, TextInput, TextSelect } from "@/components/ui";
 
 type Branch = { id: number; name: string };
 type Employee = {
@@ -85,90 +86,74 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
-      <div>
-        <a href="/" className="text-sm text-blue-700">
-          ← 일정으로
-        </a>
-        <h1 className="mt-2 text-2xl font-bold">직원 관리</h1>
-      </div>
+    <div className="space-y-6">
+      <PageHeader title="직원 관리" />
 
-      <form onSubmit={onSubmit} className="space-y-3 rounded-xl border bg-white p-4">
-        <h2 className="font-semibold">계정 등록</h2>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <input
-            className="rounded-md border px-3 py-2"
-            placeholder="이름"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-          <select
-            className="rounded-md border px-3 py-2"
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
-          >
-            {actorRole === "SUPERADMIN" ? <option value="SUPERADMIN">최고관리자</option> : null}
-            <option value="OWNER">사장</option>
-            <option value="MANAGER">지점장</option>
-            <option value="STAFF">직원</option>
-            <option value="PARTTIME">파트타임</option>
-          </select>
-          <input
-            className="rounded-md border px-3 py-2"
-            placeholder="로그인 아이디"
-            value={form.loginId}
-            onChange={(e) => setForm({ ...form, loginId: e.target.value })}
-            required
-          />
-          <input
-            className="rounded-md border px-3 py-2"
-            placeholder="초기 비밀번호"
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required
-          />
-        </div>
-
-        {form.role === "SUPERADMIN" ? (
-          <p className="text-sm text-slate-500">최고관리자는 모든 지점의 일정, 직원, 근태, 급여, 광고를 봅니다.</p>
-        ) : form.role === "OWNER" ? (
-          <div className="flex flex-wrap gap-2">
-            {branches.map((b) => (
-              <label key={b.id} className="flex items-center gap-1 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.ownerBranchIds.includes(b.id)}
-                  onChange={() => toggleOwnerBranch(b.id)}
-                />
-                {b.name}
-              </label>
-            ))}
+      <Panel>
+        <form onSubmit={onSubmit} className="space-y-3">
+          <h2 className="font-semibold text-ink">계정 등록</h2>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <TextInput
+              placeholder="이름"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+            <TextSelect value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+              {actorRole === "SUPERADMIN" ? <option value="SUPERADMIN">최고관리자</option> : null}
+              <option value="OWNER">사장</option>
+              <option value="MANAGER">지점장</option>
+              <option value="STAFF">직원</option>
+              <option value="PARTTIME">파트타임</option>
+            </TextSelect>
+            <TextInput
+              placeholder="로그인 아이디"
+              value={form.loginId}
+              onChange={(e) => setForm({ ...form, loginId: e.target.value })}
+              required
+            />
+            <TextInput
+              placeholder="초기 비밀번호"
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+            />
           </div>
-        ) : (
-          <select
-            className="rounded-md border px-3 py-2"
-            value={form.branchId}
-            onChange={(e) => setForm({ ...form, branchId: e.target.value })}
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        )}
 
-        <button type="submit" className="rounded-md bg-blue-700 px-3 py-2 text-sm text-white">
-          등록
-        </button>
-        {message ? <p className="text-sm text-slate-600">{message}</p> : null}
-      </form>
+          {form.role === "SUPERADMIN" ? (
+            <p className="text-sm text-muted">최고관리자는 모든 지점의 일정, 직원, 근태, 급여, 광고를 봅니다.</p>
+          ) : form.role === "OWNER" ? (
+            <div className="flex flex-wrap gap-2">
+              {branches.map((b) => (
+                <label key={b.id} className="flex items-center gap-1 text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    checked={form.ownerBranchIds.includes(b.id)}
+                    onChange={() => toggleOwnerBranch(b.id)}
+                  />
+                  {b.name}
+                </label>
+              ))}
+            </div>
+          ) : (
+            <TextSelect value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </TextSelect>
+          )}
 
-      <div className="overflow-hidden rounded-xl border bg-white">
+          <Button type="submit">등록</Button>
+          {message ? <Message>{message}</Message> : null}
+        </form>
+      </Panel>
+
+      <TableShell>
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left">
+          <thead className="bg-paper text-left text-muted">
             <tr>
               <th className="px-3 py-2">이름</th>
               <th className="px-3 py-2">등급</th>
@@ -179,10 +164,10 @@ export default function EmployeesPage() {
           </thead>
           <tbody>
             {employees.map((e) => (
-              <tr key={e.id} className="border-t">
+              <tr key={e.id} className="border-t border-line">
                 <td className="px-3 py-2">{e.name}</td>
                 <td className="px-3 py-2">{e.roleLabel}</td>
-                <td className="px-3 py-2">{e.loginId}</td>
+                <td className="px-3 py-2 font-mono">{e.loginId}</td>
                 <td className="px-3 py-2">
                   {e.role === "SUPERADMIN"
                     ? "전체"
@@ -195,7 +180,7 @@ export default function EmployeesPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableShell>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { TextSelect } from "@/components/ui";
 
 type Branch = { id: number; name: string };
 
@@ -17,17 +18,17 @@ export function BranchSwitcher({
 
   if (branches.length <= 1) {
     return (
-      <div className="text-sm text-slate-600">
-        지점: <span className="font-medium text-slate-900">{branches[0]?.name ?? "-"}</span>
+      <div className="text-sm text-muted">
+        지점: <span className="font-medium text-ink">{branches[0]?.name ?? "-"}</span>
       </div>
     );
   }
 
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <span className="text-slate-600">지점</span>
-      <select
-        className="rounded-md border border-slate-300 px-2 py-1.5"
+    <label className="flex items-center gap-2 text-sm text-muted">
+      <span>지점</span>
+      <TextSelect
+        className="w-auto"
         value={currentBranchId ?? ""}
         onChange={(e) => {
           const params = new URLSearchParams(searchParams.toString());
@@ -40,7 +41,7 @@ export function BranchSwitcher({
             {b.name}
           </option>
         ))}
-      </select>
+      </TextSelect>
     </label>
   );
 }

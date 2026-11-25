@@ -3,8 +3,15 @@ import { WorkType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ensureBranch, isStaffRole, jsonError, jsonOk, parseBranchId, requireApiSession } from "@/lib/api";
 import { canEditSchedule } from "@/lib/roles";
+import { workTypeForShift } from "@/lib/shifts";
 
 const WORK_TYPES = Object.values(WorkType);
+
+async function shiftForBranch(shiftId: number, branchId: number) {
+  const shift = await prisma.branchShift.findUnique({ where: { id: shiftId } });
+  if (!shift || shift.branchId !== branchId) return null;
+  return shift;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,7 +29,8 @@ export async function GET(req: NextRequest) {
         branchId,
         workDate: { gte: start, lte: end },
       },
-      orderBy: [{ workDate: "asc" }, { employeeName: "asc" }],
+      include: { shift: { select: { color: true, isOff: true } } },
+      orderBy: [{ workDate: "asc" }, { startTime: "asc" }, { employeeName: "asc" }],
     });
 
     return jsonOk({ schedules, branchId, canEdit: canEditSchedule(session.user.role) });
@@ -42,24 +50,30 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const branchId = Number(body.branchId);
     const employeeId = Number(body.employeeId);
-    const workType = body.workType as WorkType;
     const workDate = String(body.workDate || "");
     ensureBranch(session.user.branchIds, branchId);
-    if (!WORK_TYPES.includes(workType)) return jsonError("잘못된 근무유형입니다.");
     if (!employeeId || !workDate) return jsonError("필수값이 없습니다.");
+
+    const shift = body.shiftId ? await shiftForBranch(Number(body.shiftId), branchId) : null;
+    const legacyType = body.workType as WorkType;
+    if (!shift && !WORK_TYPES.includes(legacyType)) return jsonError("근무형태를 선택하세요.");
 
     const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
     if (!employee) return jsonError("직원이 없습니다.", 404);
 
+    const workType = shift ? workTypeForShift(shift) : legacyType;
+    const off = workType === WorkType.OFF;
     const schedule = await prisma.schedule.create({
       data: {
         branchId,
         employeeId,
         employeeName: employee.name,
         workType,
+        shiftId: shift?.id ?? null,
+        shiftName: shift?.name ?? null,
         workDate: new Date(workDate),
-        startTime: workType === WorkType.OFF ? null : body.startTime || null,
-        endTime: workType === WorkType.OFF ? null : body.endTime || null,
+        startTime: off ? null : body.startTime || shift?.startTime || null,
+        endTime: off ? null : body.endTime || shift?.endTime || null,
         workHours: body.workHours ? Number(body.workHours) : null,
         createdBy: session.user.name,
         updatedBy: session.user.name,
@@ -82,13 +96,32 @@ export async function PATCH(req: NextRequest) {
     if (!existing) return jsonError("일정이 없습니다.", 404);
     ensureBranch(session.user.branchIds, existing.branchId);
 
-    const workType = (body.workType as WorkType) || existing.workType;
+    const shift = body.shiftId ? await shiftForBranch(Number(body.shiftId), existing.branchId) : null;
+    if (body.shiftId && !shift) return jsonError("이 지점의 근무형태가 아닙니다.");
+
+    let employeeId = existing.employeeId;
+    let employeeName = existing.employeeName;
+    if (body.employeeId) {
+      const employee = await prisma.employee.findUnique({ where: { id: Number(body.employeeId) } });
+      if (!employee) return jsonError("직원이 없습니다.", 404);
+      employeeId = employee.id;
+      employeeName = employee.name;
+    }
+
+    const workType = shift ? workTypeForShift(shift) : ((body.workType as WorkType) || existing.workType);
+    if (!WORK_TYPES.includes(workType)) return jsonError("잘못된 근무유형입니다.");
+    const off = workType === WorkType.OFF;
     const schedule = await prisma.schedule.update({
       where: { id },
       data: {
+        employeeId,
+        employeeName,
         workType,
-        startTime: workType === WorkType.OFF ? null : body.startTime ?? existing.startTime,
-        endTime: workType === WorkType.OFF ? null : body.endTime ?? existing.endTime,
+        shiftId: shift ? shift.id : body.shiftId === null ? null : existing.shiftId,
+        shiftName: shift ? shift.name : existing.shiftName,
+        workDate: body.workDate ? new Date(String(body.workDate)) : existing.workDate,
+        startTime: off ? null : (body.startTime ?? shift?.startTime ?? existing.startTime),
+        endTime: off ? null : (body.endTime ?? shift?.endTime ?? existing.endTime),
         workHours: body.workHours !== undefined ? Number(body.workHours) : existing.workHours,
         updatedBy: session.user.name,
       },

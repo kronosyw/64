@@ -82,8 +82,29 @@ model Branch {
   adStores          AdStore[]
   adCosts           AdCost[]
   adExposures       AdExposure[]
+  shifts            BranchShift[]
+  boardPosts        BoardPostBranch[]
 
   @@map("branches")
+}
+
+model BranchShift {
+  id        Int      @id @default(autoincrement())
+  branchId  Int      @map("branch_id")
+  name      String
+  startTime String?  @map("start_time")
+  endTime   String?  @map("end_time")
+  isOff     Boolean  @default(false) @map("is_off")
+  color     String   @default("#1a73e8")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  schedules Schedule[]
+
+  @@index([branchId, sortOrder])
+  @@map("branch_shifts")
 }
 
 model Employee {
@@ -112,10 +133,41 @@ model Employee {
   schedules         Schedule[]
   attendances       Attendance[]
   payrollItems      PayrollItem[]
+  boardPosts        BoardPost[]
 
   @@index([branchId])
   @@index([role, status])
   @@map("employees")
+}
+
+model BoardPost {
+  id         Int      @id @default(autoincrement())
+  title      String
+  content    String
+  isNotice   Boolean  @default(false) @map("is_notice")
+  isAll      Boolean  @default(false) @map("is_all")
+  authorId   Int      @map("author_id")
+  authorName String   @map("author_name")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  author   Employee          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  branches BoardPostBranch[]
+
+  @@index([isNotice, createdAt])
+  @@map("board_posts")
+}
+
+model BoardPostBranch {
+  postId   Int @map("post_id")
+  branchId Int @map("branch_id")
+
+  post   BoardPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  branch Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([postId, branchId])
+  @@index([branchId])
+  @@map("board_post_branches")
 }
 
 model EmployeeBranch {
@@ -137,6 +189,8 @@ model Schedule {
   employeeId   Int       @map("employee_id")
   employeeName String    @map("employee_name")
   workType     WorkType  @map("work_type")
+  shiftId      Int?      @map("shift_id")
+  shiftName    String?   @map("shift_name")
   workDate     DateTime  @map("work_date") @db.Date
   startTime    String?   @map("start_time")
   endTime      String?   @map("end_time")
@@ -146,8 +200,9 @@ model Schedule {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  branch   Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  employee Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    BranchShift? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
   @@index([branchId, workDate])
   @@index([employeeId, workDate])

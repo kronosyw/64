@@ -1,4 +1,5 @@
 {
   "framework": "nextjs",
+  "buildCommand": "sh scripts/vercel-build.sh",
   "regions": ["icn1"]
 }

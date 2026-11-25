@@ -1,5 +1,6 @@
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { shiftRowsForBranch } from "../src/lib/shift-options";
 
 const prisma = new PrismaClient();
 
@@ -68,6 +69,11 @@ async function main() {
         status: "ACTIVE",
       },
     });
+  }
+
+  const shiftCount = await prisma.branchShift.count({ where: { branchId: branch.id } });
+  if (shiftCount === 0) {
+    await prisma.branchShift.createMany({ data: shiftRowsForBranch(branch.id) });
   }
 
   await prisma.adPlatform.upsert({

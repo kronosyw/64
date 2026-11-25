@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button, PageHeader, Panel, TableShell, TextInput, TextSelect } from "@/components/ui";
 
 type Branch = { id: number; name: string };
 type Payroll = {
@@ -78,54 +79,47 @@ export default function PayrollPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <a href="/" className="text-sm text-blue-700">
-            ← 일정으로
-          </a>
-          <h1 className="mt-2 text-2xl font-bold">급여대장</h1>
-        </div>
-        <select
-          className="rounded-md border px-2 py-1.5 text-sm"
-          value={branchId ?? ""}
-          onChange={(e) => setBranchId(Number(e.target.value))}
-        >
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="급여대장"
+        actions={
+          <TextSelect className="w-auto" value={branchId ?? ""} onChange={(e) => setBranchId(Number(e.target.value))}>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </TextSelect>
+        }
+      />
 
-      <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-white p-4">
-        <label className="text-sm">
+      <Panel className="flex flex-wrap items-end gap-2">
+        <label className="text-sm text-ink">
           연
-          <input
+          <TextInput
             type="number"
-            className="ml-2 w-24 rounded-md border px-2 py-1"
+            className="ml-2 w-24"
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
           />
         </label>
-        <label className="text-sm">
+        <label className="text-sm text-ink">
           월
-          <input
+          <TextInput
             type="number"
-            className="ml-2 w-16 rounded-md border px-2 py-1"
+            className="ml-2 w-16"
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
           />
         </label>
-        <button type="button" onClick={createPayroll} className="rounded-md bg-blue-700 px-3 py-2 text-sm text-white">
+        <Button type="button" onClick={createPayroll}>
           생성/갱신
-        </button>
-      </div>
+        </Button>
+      </Panel>
 
-      <div className="overflow-hidden rounded-xl border bg-white">
+      <TableShell>
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left">
+          <thead className="bg-paper text-left text-muted">
             <tr>
               <th className="px-3 py-2">기간</th>
               <th className="px-3 py-2">상태</th>
@@ -135,14 +129,14 @@ export default function PayrollPage() {
           </thead>
           <tbody>
             {list.map((p) => (
-              <tr key={p.id} className="border-t">
-                <td className="px-3 py-2">
+              <tr key={p.id} className="border-t border-line">
+                <td className="px-3 py-2 font-mono">
                   {p.year}-{p.month}
                 </td>
                 <td className="px-3 py-2">{p.status}</td>
-                <td className="px-3 py-2">{p._count?.items ?? 0}</td>
+                <td className="px-3 py-2 font-mono">{p._count?.items ?? 0}</td>
                 <td className="px-3 py-2 text-right">
-                  <button type="button" className="text-blue-700" onClick={() => openPayroll(p.id)}>
+                  <button type="button" className="text-ink" onClick={() => openPayroll(p.id)}>
                     보기
                   </button>
                 </td>
@@ -150,15 +144,15 @@ export default function PayrollPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableShell>
 
       {selected?.items ? (
-        <div className="overflow-hidden rounded-xl border bg-white">
-          <div className="border-b px-3 py-2 font-semibold">
+        <TableShell>
+          <div className="border-b border-line px-3 py-2 font-semibold text-ink">
             {selected.year}-{selected.month} 상세
           </div>
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left">
+            <thead className="bg-paper text-left text-muted">
               <tr>
                 <th className="px-3 py-2">이름</th>
                 <th className="px-3 py-2">구분</th>
@@ -170,18 +164,18 @@ export default function PayrollPage() {
             </thead>
             <tbody>
               {selected.items.map((i) => (
-                <tr key={i.id} className="border-t">
+                <tr key={i.id} className="border-t border-line">
                   <td className="px-3 py-2">{i.employeeName}</td>
                   <td className="px-3 py-2">{i.employeeCategory}</td>
-                  <td className="px-3 py-2">{String(i.actualHours)}</td>
-                  <td className="px-3 py-2">{i.totalPay.toLocaleString()}</td>
-                  <td className="px-3 py-2">{i.taxAmount.toLocaleString()}</td>
-                  <td className="px-3 py-2">{i.netPay.toLocaleString()}</td>
+                  <td className="px-3 py-2 font-mono">{String(i.actualHours)}</td>
+                  <td className="px-3 py-2 font-mono">{i.totalPay.toLocaleString()}</td>
+                  <td className="px-3 py-2 font-mono">{i.taxAmount.toLocaleString()}</td>
+                  <td className="px-3 py-2 font-mono">{i.netPay.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TableShell>
       ) : null}
     </div>
   );

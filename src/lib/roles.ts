@@ -1,12 +1,12 @@
-import { Role } from "@prisma/client";
-
-export const ROLE_LABEL: Record<Role, string> = {
+export const ROLE_LABEL = {
   SUPERADMIN: "최고관리자",
   OWNER: "사장",
   MANAGER: "지점장",
   STAFF: "직원",
   PARTTIME: "파트타임",
-};
+} as const;
+
+export type AppRole = keyof typeof ROLE_LABEL;
 
 export const WORK_TYPE_LABEL = {
   OPEN: "오픈",
@@ -19,40 +19,44 @@ export const WORK_TYPE_LABEL = {
 
 export type WorkTypeKey = keyof typeof WORK_TYPE_LABEL;
 
-export function isSuperAdmin(role: Role) {
-  return role === Role.SUPERADMIN;
+export function roleLabel(role: string) {
+  return ROLE_LABEL[role as AppRole] ?? role;
 }
 
-export function isOwner(role: Role) {
-  return role === Role.OWNER;
+export function isSuperAdmin(role: string) {
+  return role === "SUPERADMIN";
+}
+
+export function isOwner(role: string) {
+  return role === "OWNER";
 }
 
 /** 사장 권한과 최고관리자. 최고관리자는 지점 제한 없이 전체를 본다. */
-export function isOwnerLevel(role: Role) {
-  return role === Role.OWNER || role === Role.SUPERADMIN;
+export function isOwnerLevel(role: string) {
+  return role === "OWNER" || role === "SUPERADMIN";
 }
 
-export function isManagerOrOwner(role: Role) {
-  return role === Role.SUPERADMIN || role === Role.OWNER || role === Role.MANAGER;
+export function isManagerOrOwner(role: string) {
+  return role === "SUPERADMIN" || role === "OWNER" || role === "MANAGER";
 }
 
-export function canEditSchedule(role: Role) {
+export function canEditSchedule(role: string) {
   return isManagerOrOwner(role);
 }
 
-export function canViewMemo(role: Role) {
+export function canViewMemo(role: string) {
   return isManagerOrOwner(role);
 }
 
-export function canManageBranches(role: Role) {
+export function canManageBranches(role: string) {
   return isOwnerLevel(role);
 }
 
-export function canAccessOps(role: Role) {
+export function canAccessOps(role: string) {
   return isManagerOrOwner(role);
 }
 
-export function labelToRole(label: string): Role | null {
+export function labelToRole(label: string): AppRole | null {
   const entry = Object.entries(ROLE_LABEL).find(([, v]) => v === label);
-  return entry ? (entry[0] as Role) : null;
+  return entry ? (entry[0] as AppRole) : null;
 }

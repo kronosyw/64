@@ -15,7 +15,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  const forwarded = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const secureCookie = forwarded ? forwarded === "https" : req.nextUrl.protocol === "https:";
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET,
+    secureCookie,
+  });
   const isPublic = publicPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   if (!token && !isPublic) {

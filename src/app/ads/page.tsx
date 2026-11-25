@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { Button, PageHeader, Panel, TextInput, TextSelect } from "@/components/ui";
 
 type Branch = { id: number; name: string };
 type Platform = { id: number; name: string };
@@ -115,141 +116,129 @@ export default function AdsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <a href="/" className="text-sm text-blue-700">
-            ← 일정으로
-          </a>
-          <h1 className="mt-2 text-2xl font-bold">광고</h1>
-        </div>
-        <select
-          className="rounded-md border px-2 py-1.5 text-sm"
-          value={branchId ?? ""}
-          onChange={(e) => setBranchId(Number(e.target.value))}
-        >
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="광고"
+        actions={
+          <TextSelect className="w-auto" value={branchId ?? ""} onChange={(e) => setBranchId(Number(e.target.value))}>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </TextSelect>
+        }
+      />
 
-      <form onSubmit={addStore} className="flex flex-wrap gap-2 rounded-xl border bg-white p-4">
-        <input
-          className="rounded-md border px-2 py-2"
-          placeholder="점포명"
-          value={storeForm.name}
-          onChange={(e) => setStoreForm({ ...storeForm, name: e.target.value })}
-          required
-        />
-        <select
-          className="rounded-md border px-2 py-2"
-          value={storeForm.platformId}
-          onChange={(e) => setStoreForm({ ...storeForm, platformId: e.target.value })}
-        >
-          {platforms.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="rounded-md border px-2 py-2"
-          value={storeForm.storeType}
-          onChange={(e) => setStoreForm({ ...storeForm, storeType: e.target.value })}
-        >
-          <option value="OWN">자사</option>
-          <option value="COMPETITOR">경쟁사</option>
-        </select>
-        <button type="submit" className="rounded-md bg-blue-700 px-3 py-2 text-white">
-          점포 추가
-        </button>
-      </form>
+      <Panel>
+        <form onSubmit={addStore} className="flex flex-wrap gap-2">
+          <TextInput
+            className="w-auto"
+            placeholder="점포명"
+            value={storeForm.name}
+            onChange={(e) => setStoreForm({ ...storeForm, name: e.target.value })}
+            required
+          />
+          <TextSelect
+            className="w-auto"
+            value={storeForm.platformId}
+            onChange={(e) => setStoreForm({ ...storeForm, platformId: e.target.value })}
+          >
+            {platforms.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </TextSelect>
+          <TextSelect
+            className="w-auto"
+            value={storeForm.storeType}
+            onChange={(e) => setStoreForm({ ...storeForm, storeType: e.target.value })}
+          >
+            <option value="OWN">자사</option>
+            <option value="COMPETITOR">경쟁사</option>
+          </TextSelect>
+          <Button type="submit">점포 추가</Button>
+        </form>
+      </Panel>
 
-      <form onSubmit={addCost} className="grid gap-2 rounded-xl border bg-white p-4 sm:grid-cols-3">
-        <select
-          className="rounded-md border px-2 py-2"
-          value={costForm.storeId}
-          onChange={(e) => setCostForm({ ...costForm, storeId: e.target.value })}
-          required
-        >
-          <option value="">점포</option>
-          {stores.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        <input
-          type="date"
-          className="rounded-md border px-2 py-2"
-          value={costForm.costDate}
-          onChange={(e) => setCostForm({ ...costForm, costDate: e.target.value })}
-        />
-        <input
-          className="rounded-md border px-2 py-2"
-          placeholder="광고비"
-          value={costForm.adSpend}
-          onChange={(e) => setCostForm({ ...costForm, adSpend: e.target.value })}
-        />
-        <input
-          className="rounded-md border px-2 py-2"
-          placeholder="노출"
-          value={costForm.impressions}
-          onChange={(e) => setCostForm({ ...costForm, impressions: e.target.value })}
-        />
-        <input
-          className="rounded-md border px-2 py-2"
-          placeholder="클릭"
-          value={costForm.clicks}
-          onChange={(e) => setCostForm({ ...costForm, clicks: e.target.value })}
-        />
-        <input
-          className="rounded-md border px-2 py-2"
-          placeholder="주문"
-          value={costForm.orders}
-          onChange={(e) => setCostForm({ ...costForm, orders: e.target.value })}
-        />
-        <input
-          className="rounded-md border px-2 py-2"
-          placeholder="주문금액"
-          value={costForm.orderAmount}
-          onChange={(e) => setCostForm({ ...costForm, orderAmount: e.target.value })}
-        />
-        <button type="submit" className="rounded-md bg-blue-700 px-3 py-2 text-white sm:col-span-2">
-          광고비 저장
-        </button>
-      </form>
+      <Panel>
+        <form onSubmit={addCost} className="grid gap-2 sm:grid-cols-3">
+          <TextSelect
+            value={costForm.storeId}
+            onChange={(e) => setCostForm({ ...costForm, storeId: e.target.value })}
+            required
+          >
+            <option value="">점포</option>
+            {stores.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </TextSelect>
+          <TextInput
+            type="date"
+            value={costForm.costDate}
+            onChange={(e) => setCostForm({ ...costForm, costDate: e.target.value })}
+          />
+          <TextInput
+            placeholder="광고비"
+            value={costForm.adSpend}
+            onChange={(e) => setCostForm({ ...costForm, adSpend: e.target.value })}
+          />
+          <TextInput
+            placeholder="노출"
+            value={costForm.impressions}
+            onChange={(e) => setCostForm({ ...costForm, impressions: e.target.value })}
+          />
+          <TextInput
+            placeholder="클릭"
+            value={costForm.clicks}
+            onChange={(e) => setCostForm({ ...costForm, clicks: e.target.value })}
+          />
+          <TextInput
+            placeholder="주문"
+            value={costForm.orders}
+            onChange={(e) => setCostForm({ ...costForm, orders: e.target.value })}
+          />
+          <TextInput
+            placeholder="주문금액"
+            value={costForm.orderAmount}
+            onChange={(e) => setCostForm({ ...costForm, orderAmount: e.target.value })}
+          />
+          <Button type="submit" className="sm:col-span-2">
+            광고비 저장
+          </Button>
+        </form>
+      </Panel>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border bg-white p-4">
-          <h2 className="mb-2 font-semibold">광고비</h2>
+        <Panel>
+          <h2 className="mb-2 font-semibold text-ink">광고비</h2>
           <div className="space-y-2 text-sm">
             {costs.map((c) => (
-              <div key={c.id} className="rounded bg-slate-50 px-2 py-1">
+              <div key={c.id} className="rounded-btn bg-paper px-2 py-1 font-mono text-ink">
                 {String(c.costDate).slice(0, 10)} · {c.store?.name} · {c.adSpend.toLocaleString()}원 · ROAS{" "}
                 {Number(c.roas).toFixed(1)}%
               </div>
             ))}
           </div>
-        </div>
-        <div className="rounded-xl border bg-white p-4">
-          <h2 className="mb-2 font-semibold">리뷰 / 노출</h2>
-          <div className="space-y-2 text-sm">
+        </Panel>
+        <Panel>
+          <h2 className="mb-2 font-semibold text-ink">리뷰 / 노출</h2>
+          <div className="space-y-2 text-sm text-ink">
             {reviews.map((r) => (
-              <div key={r.id} className="rounded bg-slate-50 px-2 py-1">
+              <div key={r.id} className="rounded-btn bg-paper px-2 py-1">
                 리뷰 {String(r.reviewDate).slice(0, 10)} · {r.store?.name} · {r.reviewCount}
               </div>
             ))}
             {exposures.map((x) => (
-              <div key={x.id} className="rounded bg-slate-50 px-2 py-1">
+              <div key={x.id} className="rounded-btn bg-paper px-2 py-1">
                 노출 {String(x.exposureDate).slice(0, 10)} · {x.regionName} · rank {x.rank ?? "-"}
               </div>
             ))}
           </div>
-        </div>
+        </Panel>
       </section>
     </div>
   );
