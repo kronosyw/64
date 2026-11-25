@@ -1,0 +1,8 @@
+DO $$ BEGIN
+  ALTER TYPE "PayrollStatus" ADD VALUE 'PAID';
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+ALTER TABLE "ad_costs" ADD COLUMN IF NOT EXISTS "memo" VARCHAR(10);
+ALTER TABLE "ad_costs" ADD COLUMN IF NOT EXISTS "check_time" VARCHAR(10);

@@ -42,3 +42,9 @@ export function maskSsn(ssn: string | null | undefined) {
   if (clean.length < 7) return clean;
   return `${clean.slice(0, 6)}-*******`;
 }
+
+export function payrollStatusLabel(status: string) {
+  if (status === "DONE") return "완료";
+  if (status === "PAID") return "지급완료";
+  return "작성중";
+}

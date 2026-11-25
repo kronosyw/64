@@ -50,6 +50,7 @@ enum PayrollTaxType {
 enum PayrollStatus {
   DRAFT
   DONE
+  PAID
 }
 
 enum EmployeeCategory {
@@ -381,6 +382,8 @@ model AdCost {
   cpa         Int      @default(0)
   roas        Decimal  @default(0) @db.Decimal(8, 2)
   notes       String?
+  memo        String?  @db.VarChar(10)
+  checkTime   String?  @map("check_time") @db.VarChar(10)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
