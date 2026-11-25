@@ -101,7 +101,7 @@ yuksa-64/
 │       ├── session.ts         # 서버 페이지용 세션 헬퍼
 │       ├── api.ts             # API 권한·응답 헬퍼
 │       ├── roles.ts           # 역할 라벨·권한 함수
-│       ├── employees.ts       # 직원 생성·사장 2명 제한
+│       ├── employees.ts       # 직원 생성·사장-지점 N:M 배정
 │       ├── payroll.ts         # 급여 계산
 │       └── prisma.ts          # Prisma 싱글톤
 ├── docs/
@@ -124,7 +124,7 @@ yuksa-64/
 | 일정 아래 메모 | O | O | X | X |
 | 지점 전환 UI | O (배정 지점) | X (고정) | X | X |
 | 지점 등록/수정/비활성 | O | X | X | X |
-| 사장 계정 생성 | O (최대 2명) | X | X | X |
+| 사장 계정 생성 | O (여러 명, 지점 배정) | X | X | X |
 | 직원·파트타임 계정 | O | O (자기 지점만) | X | X |
 | 근태 / 급여 / 통계 / 광고 | O | O | X | X |
 | 비밀번호 변경 | O | O | O | O |
@@ -132,8 +132,8 @@ yuksa-64/
 서버에서 반드시 지키는 규칙:
 
 1. 세션 `branchIds` 밖의 지점 ID는 쿼리스트링으로도 우회 불가 (`ensureBranch` / `parseBranchId`).
-2. 근무 중 사장(`OWNER` + `ACTIVE`)은 **최대 2명**.
-3. 사장 소속은 `employee_branches`, 그 외는 `employees.branch_id` 1개.
+2. 사장은 여러 명 가능. 각자 다른 지점을 갖거나, 같은 지점을 동업으로 공유할 수 있다 (`employee_branches`).
+3. 사장 소속은 `employee_branches` N:M, 그 외는 `employees.branch_id` 1개.
 4. `RESIGNED`(퇴사) 계정은 로그인 불가.
 5. 메모 API는 사장·지점장만 (`requireApiMemo`).
 
@@ -299,10 +299,10 @@ npm run dev
 - `cacheComponents`는 현재 `false` (`next.config.ts`). 함부로 켜면 auth/DB 페이지 빌드가 깨질 수 있음.
 - 비밀값(`.env`)은 커밋 금지. `.env.example`만 공유.
 
-### 9.5 사장 2명 · 지점 배정 구현 위치
+### 9.5 사장 · 지점 배정 구현 위치
 
-- 생성 제한: `src/lib/employees.ts` → `countActiveOwners` / `createEmployeeAccount`
-- 배정 저장: `EmployeeBranch`
+- 사장 생성·지점 배정: `src/lib/employees.ts` → `createEmployeeAccount` / `updateOwnerBranches`
+- 배정 저장: `EmployeeBranch` (사장↔지점 N:M, 동업 가능)
 - 로그인 시 지점 목록: `src/lib/auth.ts` → `resolveBranchIds`
 
 ---
@@ -349,7 +349,7 @@ npm run dev
 - [ ] `owner` 로그인 → 지점·직원 메뉴 보임
 - [ ] 직원/파트타임 계정 생성 후 일정만 보이고 메모 없음
 - [ ] 다른 지점 `branchId`로 API 호출 시 403
-- [ ] 사장 3번째 생성 시 에러
+- [ ] 사장 여러 명 등록·같은 지점 동업 배정 확인
 - [ ] `npm run build` 통과
 
 ---

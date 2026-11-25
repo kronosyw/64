@@ -1,18 +1,6 @@
-import { EmploymentStatus, Prisma, Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-
-const MAX_OWNERS = 2;
-
-export async function countActiveOwners(excludeId?: number) {
-  return prisma.employee.count({
-    where: {
-      role: Role.OWNER,
-      status: EmploymentStatus.ACTIVE,
-      ...(excludeId ? { id: { not: excludeId } } : {}),
-    },
-  });
-}
 
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -92,8 +80,6 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
     if (actorRole !== Role.OWNER && actorRole !== Role.SUPERADMIN) {
       throw new Error("사장은 사장 또는 최고관리자만 등록할 수 있습니다.");
     }
-    const owners = await countActiveOwners();
-    if (owners >= MAX_OWNERS) throw new Error("사장은 최대 2명까지 가능합니다.");
     if (!ownerBranchIds.length) throw new Error("사장 지점을 1개 이상 배정하세요.");
     if (!unrestricted) {
       for (const id of ownerBranchIds) {
