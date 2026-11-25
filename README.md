@@ -3,6 +3,7 @@
 SKADI PHP `/64`와 분리된 Next.js 앱입니다.
 
 - **전체 구조·개발 가이드:** [docs/ARCHITECTURE_AND_DEV_GUIDE.md](docs/ARCHITECTURE_AND_DEV_GUIDE.md)
+- **급여대장 생성·출력 스펙:** [docs/PAYROLL_CREATE_PRINT_SPEC.md](docs/PAYROLL_CREATE_PRINT_SPEC.md)
 - **배포:** [DEPLOY.md](DEPLOY.md)
 
 ## 스택
