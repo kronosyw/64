@@ -8,6 +8,7 @@ SKADI PHP(`/64`)와 분리된 Next.js 관리 앱입니다.
 - [README.md](../README.md) — 빠른 시작
 - [DEPLOY.md](../DEPLOY.md) — Vercel · Neon · 도메인
 - [PAYROLL_CREATE_PRINT_SPEC.md](./PAYROLL_CREATE_PRINT_SPEC.md) — 급여대장 생성·A4 인쇄·지급 양식 (SKADI 원본 분석)
+- [ADS_SPEC.md](./ADS_SPEC.md) — 리뷰·노출·광고비·광고통계 전체 기획 (SKADI `64/ads`)
 - [prisma/schema.prisma](../prisma/schema.prisma) — DB 스키마 원본
 
 ---
