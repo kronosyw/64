@@ -39,7 +39,7 @@ export async function middleware(req: NextRequest) {
 
   const role = token?.role as string | undefined;
   const opsOnly = ["/branches", "/employees", "/attendance", "/payroll", "/statistics", "/ads"];
-  const ownerOnly = ["/branches"];
+  const ownerOnly = ["/branches", "/vault"];
 
   if (token && opsOnly.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     if (role !== "SUPERADMIN" && role !== "OWNER" && role !== "MANAGER") {

@@ -85,6 +85,7 @@ model Branch {
   adExposures       AdExposure[]
   shifts            BranchShift[]
   boardPosts        BoardPostBranch[]
+  infoRecords       InfoRecord[]
 
   @@map("branches")
 }
@@ -411,4 +412,38 @@ model AdExposure {
 
   @@index([branchId, exposureDate])
   @@map("ad_exposures")
+}
+
+model InfoRecord {
+  id         Int      @id @default(autoincrement())
+  branchId   Int      @map("branch_id")
+  title      String
+  content    String?  @db.Text
+  authorId   Int?     @map("author_id")
+  authorName String   @map("author_name")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  branch Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  files  InfoFile[]
+
+  @@index([branchId, createdAt])
+  @@index([createdAt])
+  @@map("info_records")
+}
+
+model InfoFile {
+  id        Int      @id @default(autoincrement())
+  recordId  Int      @map("record_id")
+  fileName  String   @map("file_name")
+  mimeType  String   @map("mime_type")
+  size      Int      @default(0)
+  kind      String   @default("FILE")
+  data      Bytes
+  createdAt DateTime @default(now()) @map("created_at")
+
+  record InfoRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@index([recordId])
+  @@map("info_files")
 }

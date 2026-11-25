@@ -39,6 +39,14 @@ export async function requireApiOwner() {
   return session;
 }
 
+export async function requireApiVault() {
+  const session = await requireApiSession();
+  if (session.user.role !== Role.SUPERADMIN && session.user.role !== Role.OWNER) {
+    throw new Response(JSON.stringify({ success: false, message: "사장 또는 최고관리자만 가능합니다." }), { status: 403 });
+  }
+  return session;
+}
+
 export async function requireApiMemo() {
   const session = await requireApiSession();
   if (!canViewMemo(session.user.role)) {

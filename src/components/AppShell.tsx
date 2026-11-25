@@ -15,6 +15,7 @@ const LINKS = [
   { href: "/payroll", label: "급여", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
   { href: "/statistics", label: "통계", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
   { href: "/ads", label: "광고", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
+  { href: "/vault", label: "정보저장", roles: ["SUPERADMIN", "OWNER"] },
   { href: "/branches", label: "지점", roles: ["SUPERADMIN", "OWNER"] },
   { href: "/settings", label: "설정", roles: ["SUPERADMIN", "OWNER", "MANAGER", "STAFF", "PARTTIME"] },
 ];
