@@ -1,4 +1,5 @@
 import { EmployeeCategory, PayrollTaxType, Role } from "@prisma/client";
+import { hoursBetween } from "@/lib/schedule-hours";
 
 export function countWeekdays(year: number, month: number) {
   const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -24,17 +25,7 @@ export function calcTax33(pay: number) {
   return incomeTax + localTax;
 }
 
-function hoursBetween(start: string | null | undefined, end: string | null | undefined) {
-  if (!start || !end) return 0;
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return 0;
-  let mins = eh * 60 + em - (sh * 60 + sm);
-  if (mins <= 0) mins += 24 * 60;
-  return mins / 60;
-}
-
-/** 스케줄 → 실근무·근무일·초과시간 (휴게 1.5h / 초과 = hours − days×10) */
+/** 스케줄 → 실근무·근무일·초과시간. workHours가 있으면 휴게 반영된 값으로 보고 그대로 사용. */
 export function aggregateSchedules(
   schedules: Array<{
     workDate: Date | string;
@@ -54,10 +45,11 @@ export function aggregateSchedules(
       continue;
     }
     workDays += 1;
-    const raw =
-      schedule.workHours != null && Number(schedule.workHours) > 0
-        ? Number(schedule.workHours)
-        : hoursBetween(schedule.startTime, schedule.endTime);
+    if (schedule.workHours != null && Number(schedule.workHours) > 0) {
+      actualHours += Number(schedule.workHours);
+      continue;
+    }
+    const raw = hoursBetween(schedule.startTime, schedule.endTime);
     const date = typeof schedule.workDate === "string" ? new Date(schedule.workDate) : schedule.workDate;
     const dow = date.getUTCDay();
     const weekday = dow >= 1 && dow <= 5;

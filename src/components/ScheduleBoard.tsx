@@ -1,12 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { WORK_TYPE_LABEL, type WorkTypeKey } from "@/lib/roles";
+import { roleLabel, WORK_TYPE_LABEL, type WorkTypeKey } from "@/lib/roles";
+import { BREAK_OPTIONS, netWorkHours } from "@/lib/schedule-hours";
 import { SHIFT_COLORS } from "@/lib/shift-options";
 import {
   Badge,
   Button,
   CheckLabel,
+  Field,
   Message,
   Modal,
   Panel,
@@ -50,9 +52,39 @@ type Editor = {
   workDate: string;
   startTime: string;
   endTime: string;
+  breakMinutes: string;
+};
+
+type BulkDraft = {
+  employeeIds: number[];
+  weekdays: number[];
+  dayTimes: Record<number, { startTime: string; endTime: string }>;
+  breakMinutes: string;
+  shiftId: string;
+  replaceExisting: boolean;
 };
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const DEFAULT_DAY_TIME = { startTime: "10:00", endTime: "22:00" };
+
+function emptyBulk(): BulkDraft {
+  return {
+    employeeIds: [],
+    weekdays: [1, 2, 3, 4, 5],
+    dayTimes: {
+      0: { ...DEFAULT_DAY_TIME },
+      1: { ...DEFAULT_DAY_TIME },
+      2: { ...DEFAULT_DAY_TIME },
+      3: { ...DEFAULT_DAY_TIME },
+      4: { ...DEFAULT_DAY_TIME },
+      5: { ...DEFAULT_DAY_TIME },
+      6: { ...DEFAULT_DAY_TIME },
+    },
+    breakMinutes: "90",
+    shiftId: "",
+    replaceExisting: false,
+  };
+}
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -92,6 +124,8 @@ export function ScheduleBoard({
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [memos, setMemos] = useState<Memo[]>([]);
   const [editor, setEditor] = useState<Editor | null>(null);
+  const [bulk, setBulk] = useState<BulkDraft | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [shiftDraft, setShiftDraft] = useState<{
     name: string;
     startTime: string;
@@ -124,7 +158,10 @@ export function ScheduleBoard({
       if (eData.success) {
         setEmployees(
           eData.employees.filter(
-            (e: Employee) => e.status === "ACTIVE" && e.role !== "OWNER" && e.role !== "SUPERADMIN",
+            (e: Employee) =>
+              e.status === "ACTIVE" &&
+              e.role !== "SUPERADMIN" &&
+              ["OWNER", "MANAGER", "STAFF", "PARTTIME"].includes(e.role),
           ),
         );
       }
@@ -171,6 +208,7 @@ export function ScheduleBoard({
       workDate: schedule ? schedule.workDate.slice(0, 10) : dateValue(year, month, day),
       startTime: schedule?.startTime || shift?.startTime || "10:00",
       endTime: schedule?.endTime || shift?.endTime || "22:00",
+      breakMinutes: "90",
     };
   }
 
@@ -217,6 +255,8 @@ export function ScheduleBoard({
       workDate: editor.workDate,
       startTime: editor.startTime,
       endTime: editor.endTime,
+      breakMinutes: Number(editor.breakMinutes || 0),
+      workHours: netWorkHours(editor.startTime, editor.endTime, Number(editor.breakMinutes || 0)),
     };
     const res = await fetch("/api/schedules", {
       method: editor.id ? "PATCH" : "POST",
@@ -230,6 +270,64 @@ export function ScheduleBoard({
     }
     setEditor(null);
     setMessage(editor.id ? "수정했습니다." : "등록했습니다.");
+    load();
+  }
+
+  function toggleBulkEmployee(id: number) {
+    setBulk((current) => {
+      if (!current) return current;
+      const employeeIds = current.employeeIds.includes(id)
+        ? current.employeeIds.filter((x) => x !== id)
+        : [...current.employeeIds, id];
+      return { ...current, employeeIds };
+    });
+  }
+
+  function toggleBulkWeekday(day: number) {
+    setBulk((current) => {
+      if (!current) return current;
+      const weekdays = current.weekdays.includes(day)
+        ? current.weekdays.filter((x) => x !== day)
+        : [...current.weekdays, day].sort();
+      return { ...current, weekdays };
+    });
+  }
+
+  async function saveBulk(e: FormEvent) {
+    e.preventDefault();
+    if (!bulk) return;
+    if (!bulk.employeeIds.length || !bulk.weekdays.length) {
+      setMessage("인원과 요일을 선택하세요.");
+      return;
+    }
+    setBulkLoading(true);
+    setMessage("");
+    const res = await fetch("/api/schedules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "bulk",
+        branchId,
+        year,
+        month,
+        employeeIds: bulk.employeeIds,
+        weekdays: bulk.weekdays,
+        dayTimes: Object.fromEntries(
+          bulk.weekdays.map((day) => [String(day), bulk.dayTimes[day] || DEFAULT_DAY_TIME]),
+        ),
+        breakMinutes: Number(bulk.breakMinutes || 0),
+        shiftId: bulk.shiftId ? Number(bulk.shiftId) : null,
+        replaceExisting: bulk.replaceExisting,
+      }),
+    });
+    const data = await res.json();
+    setBulkLoading(false);
+    if (!data.success) {
+      setMessage(data.message || "일괄 등록에 실패했습니다.");
+      return;
+    }
+    setBulk(null);
+    setMessage(data.message || "일괄 등록했습니다.");
     load();
   }
 
@@ -293,6 +391,24 @@ export function ScheduleBoard({
 
   return (
     <div className="space-y-4">
+      {canEdit ? (
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => openCreate(selectedDay)}>
+            일정 등록
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setMessage("");
+              setBulk(emptyBulk());
+            }}
+          >
+            월 일괄 등록
+          </Button>
+        </div>
+      ) : null}
+
       {canEdit ? (
         <details className="rounded-panel border border-line bg-card open:shadow-[0_1px_0_rgba(12,35,64,0.04)]">
           <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-ink marker:content-none [&::-webkit-details-marker]:hidden">
@@ -534,10 +650,10 @@ export function ScheduleBoard({
               onChange={(e) => setEditor({ ...editor, employeeId: e.target.value })}
               required
             >
-              <option value="">직원 선택</option>
+              <option value="">근무자 선택</option>
               {employees.map((employee) => (
                 <option key={employee.id} value={employee.id}>
-                  {employee.name}
+                  {employee.name} ({roleLabel(employee.role)})
                 </option>
               ))}
             </TextSelect>
@@ -557,19 +673,163 @@ export function ScheduleBoard({
               required
             />
             <div className="grid grid-cols-2 gap-2">
-              <TextInput
-                type="time"
-                value={editor.startTime}
-                disabled={selectedShift?.isOff}
-                onChange={(e) => setEditor({ ...editor, startTime: e.target.value })}
-              />
-              <TextInput
-                type="time"
-                value={editor.endTime}
-                disabled={selectedShift?.isOff}
-                onChange={(e) => setEditor({ ...editor, endTime: e.target.value })}
-              />
+              <Field label="시작">
+                <TextInput
+                  type="time"
+                  value={editor.startTime}
+                  disabled={selectedShift?.isOff}
+                  onChange={(e) => setEditor({ ...editor, startTime: e.target.value })}
+                />
+              </Field>
+              <Field label="종료">
+                <TextInput
+                  type="time"
+                  value={editor.endTime}
+                  disabled={selectedShift?.isOff}
+                  onChange={(e) => setEditor({ ...editor, endTime: e.target.value })}
+                />
+              </Field>
             </div>
+            {!selectedShift?.isOff ? (
+              <Field
+                label="휴게"
+                hint={`실근무 ${netWorkHours(editor.startTime, editor.endTime, Number(editor.breakMinutes || 0))}시간 (급여 반영)`}
+              >
+                <TextSelect
+                  value={editor.breakMinutes}
+                  onChange={(e) => setEditor({ ...editor, breakMinutes: e.target.value })}
+                >
+                  {BREAK_OPTIONS.map((opt) => (
+                    <option key={opt.minutes} value={opt.minutes}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </TextSelect>
+              </Field>
+            ) : null}
+          </form>
+        </Modal>
+      ) : null}
+
+      {bulk ? (
+        <Modal
+          title={`${year}년 ${month}월 일괄 등록`}
+          onClose={() => setBulk(null)}
+          footer={
+            <>
+              <Button type="submit" form="schedule-bulk" className="flex-1" size="lg" disabled={bulkLoading}>
+                {bulkLoading ? "등록 중..." : "일괄 등록"}
+              </Button>
+              <Button type="button" variant="ghost" size="lg" onClick={() => setBulk(null)}>
+                취소
+              </Button>
+            </>
+          }
+        >
+          <form id="schedule-bulk" onSubmit={saveBulk} className="space-y-4">
+            <div>
+              <p className="mb-2 text-sm font-medium text-ink">근무자 (사장·지점장·직원·파트)</p>
+              <div className="flex flex-wrap gap-2">
+                {employees.map((employee) => (
+                  <CheckLabel
+                    key={employee.id}
+                    checked={bulk.employeeIds.includes(employee.id)}
+                    onChange={() => toggleBulkEmployee(employee.id)}
+                  >
+                    {employee.name} ({roleLabel(employee.role)})
+                  </CheckLabel>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-sm font-medium text-ink">요일</p>
+              <div className="flex flex-wrap gap-2">
+                {WEEKDAYS.map((label, day) => (
+                  <CheckLabel
+                    key={label}
+                    checked={bulk.weekdays.includes(day)}
+                    onChange={() => toggleBulkWeekday(day)}
+                  >
+                    {label}
+                  </CheckLabel>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-ink">요일별 시간</p>
+              {bulk.weekdays.map((day) => (
+                <div key={day} className="grid grid-cols-[3rem_1fr_1fr] items-center gap-2">
+                  <span className="text-sm text-muted">{WEEKDAYS[day]}</span>
+                  <TextInput
+                    type="time"
+                    value={bulk.dayTimes[day]?.startTime || "10:00"}
+                    onChange={(e) =>
+                      setBulk({
+                        ...bulk,
+                        dayTimes: {
+                          ...bulk.dayTimes,
+                          [day]: {
+                            startTime: e.target.value,
+                            endTime: bulk.dayTimes[day]?.endTime || "22:00",
+                          },
+                        },
+                      })
+                    }
+                  />
+                  <TextInput
+                    type="time"
+                    value={bulk.dayTimes[day]?.endTime || "22:00"}
+                    onChange={(e) =>
+                      setBulk({
+                        ...bulk,
+                        dayTimes: {
+                          ...bulk.dayTimes,
+                          [day]: {
+                            startTime: bulk.dayTimes[day]?.startTime || "10:00",
+                            endTime: e.target.value,
+                          },
+                        },
+                      })
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+
+            <Field label="휴게시간" hint="선택한 휴게는 실근무시간에서 빠지고 급여 계산에 쓰입니다.">
+              <TextSelect
+                value={bulk.breakMinutes}
+                onChange={(e) => setBulk({ ...bulk, breakMinutes: e.target.value })}
+              >
+                {BREAK_OPTIONS.map((opt) => (
+                  <option key={opt.minutes} value={opt.minutes}>
+                    {opt.label}
+                  </option>
+                ))}
+              </TextSelect>
+            </Field>
+
+            <Field label="근무형태 (선택)">
+              <TextSelect value={bulk.shiftId} onChange={(e) => setBulk({ ...bulk, shiftId: e.target.value })}>
+                <option value="">직접 시간만 사용</option>
+                {shifts
+                  .filter((s) => !s.isOff)
+                  .map((shift) => (
+                    <option key={shift.id} value={shift.id}>
+                      {shift.name}
+                    </option>
+                  ))}
+              </TextSelect>
+            </Field>
+
+            <CheckLabel
+              checked={bulk.replaceExisting}
+              onChange={(e) => setBulk({ ...bulk, replaceExisting: e.target.checked })}
+            >
+              같은 날 기존 일정 덮어쓰기
+            </CheckLabel>
           </form>
         </Modal>
       ) : null}

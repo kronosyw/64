@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     }
 
     const employees = await prisma.employee.findMany({
-      where: employeeListWhere(session.user.role, session.user.branchIds),
+      where,
       include: {
         branch: { select: { id: true, name: true } },
         ownerBranches: { include: { branch: { select: { id: true, name: true } } } },
