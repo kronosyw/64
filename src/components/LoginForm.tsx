@@ -39,10 +39,10 @@ export function LoginForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper px-4">
-      <div className="w-full max-w-md overflow-hidden rounded-panel border border-line bg-card">
-        <div className="flex flex-col items-center bg-ink px-6 py-8 text-center text-paper">
+      <div className="w-full max-w-md overflow-hidden rounded-panel border border-line bg-card shadow-[0_18px_50px_rgba(12,35,64,0.12)]">
+        <div className="flex flex-col items-center bg-ink px-6 py-9 text-center text-paper">
           <BrandMark size={56} />
-          <h1 className="mt-3 text-2xl font-bold">잉잉관리자</h1>
+          <h1 className="mt-3 text-2xl font-bold tracking-tight">잉잉관리자</h1>
           <p className="mt-1 text-sm text-paper/70">일정 · 근태 · 지점 관리</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4 p-6">
@@ -64,7 +64,7 @@ export function LoginForm() {
             />
           </Field>
           {error ? <Message tone="danger">{error}</Message> : null}
-          <Button type="submit" disabled={loading} className="w-full py-2.5">
+          <Button type="submit" disabled={loading} size="lg" className="w-full">
             {loading ? "로그인 중..." : "로그인"}
           </Button>
         </form>

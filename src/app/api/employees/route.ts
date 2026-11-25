@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
-import { Role } from "@prisma/client";
+import { EmploymentStatus, InsuranceType, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk, requireApiOps } from "@/lib/api";
 import { createEmployeeAccount, employeeListWhere } from "@/lib/employees";
+import { parseOptionalDate } from "@/lib/hr";
 import { roleLabel } from "@/lib/roles";
 
 export async function GET(req: NextRequest) {
@@ -54,18 +55,31 @@ export async function POST(req: NextRequest) {
     const role = body.role as Role;
     if (!Object.values(Role).includes(role)) return jsonError("잘못된 등급입니다.");
 
+    const insuranceType =
+      body.insuranceType === InsuranceType.THREE_POINT_THREE || body.insuranceType === "THREE_POINT_THREE"
+        ? InsuranceType.THREE_POINT_THREE
+        : body.insuranceType === InsuranceType.FOUR_INSURANCE || body.insuranceType === "FOUR_INSURANCE"
+          ? InsuranceType.FOUR_INSURANCE
+          : undefined;
+
     const employee = await createEmployeeAccount({
       name: String(body.name ?? ""),
       role,
       loginId: String(body.loginId ?? ""),
       password: String(body.password ?? ""),
       phone: body.phone,
+      ssn: body.ssn,
+      hireDate: parseOptionalDate(body.hireDate),
+      healthCertExpire: parseOptionalDate(body.healthCertExpire),
+      bankName: body.bankName,
+      accountNumber: body.accountNumber,
+      accountHolder: body.accountHolder,
       branchId: body.branchId ? Number(body.branchId) : null,
       ownerBranchIds: Array.isArray(body.ownerBranchIds)
         ? body.ownerBranchIds.map((n: unknown) => Number(n))
         : [],
-      monthlySalary: body.monthlySalary ? Number(body.monthlySalary) : null,
-      insuranceType: body.insuranceType,
+      monthlySalary: body.monthlySalary !== undefined && body.monthlySalary !== "" ? Number(body.monthlySalary) : null,
+      insuranceType,
       notes: body.notes,
       actorRole: session.user.role,
       actorBranchIds: session.user.branchIds,
@@ -107,8 +121,29 @@ export async function PATCH(req: NextRequest) {
     const data: Record<string, unknown> = {};
     if (body.name !== undefined) data.name = String(body.name).trim();
     if (body.phone !== undefined) data.phone = body.phone || null;
-    if (body.status !== undefined) data.status = body.status;
-    if (body.monthlySalary !== undefined) data.monthlySalary = body.monthlySalary ? Number(body.monthlySalary) : null;
+    if (body.ssn !== undefined) data.ssn = body.ssn ? String(body.ssn).trim() : null;
+    if (body.hireDate !== undefined) data.hireDate = parseOptionalDate(body.hireDate);
+    if (body.healthCertExpire !== undefined) data.healthCertExpire = parseOptionalDate(body.healthCertExpire);
+    if (body.bankName !== undefined) data.bankName = body.bankName ? String(body.bankName).trim() : null;
+    if (body.accountNumber !== undefined) {
+      data.accountNumber = body.accountNumber ? String(body.accountNumber).trim() : null;
+    }
+    if (body.accountHolder !== undefined) {
+      data.accountHolder = body.accountHolder ? String(body.accountHolder).trim() : null;
+    }
+    if (body.status !== undefined) {
+      if (!Object.values(EmploymentStatus).includes(body.status)) return jsonError("잘못된 상태입니다.");
+      data.status = body.status;
+    }
+    if (body.monthlySalary !== undefined) {
+      data.monthlySalary = body.monthlySalary === "" || body.monthlySalary === null ? null : Number(body.monthlySalary);
+    }
+    if (body.insuranceType !== undefined) {
+      if (!Object.values(InsuranceType).includes(body.insuranceType)) {
+        return jsonError("근무형태(보험)가 올바르지 않습니다.");
+      }
+      data.insuranceType = body.insuranceType;
+    }
     if (body.notes !== undefined) data.notes = body.notes || null;
     if (body.branchId !== undefined && target.role !== Role.OWNER && target.role !== Role.SUPERADMIN) {
       const branchId = Number(body.branchId);

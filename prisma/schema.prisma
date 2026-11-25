@@ -283,6 +283,9 @@ model PayrollItem {
   employeeName     String           @map("employee_name")
   ssn              String?
   hireDate         DateTime?        @map("hire_date") @db.Date
+  bankName         String?          @map("bank_name")
+  accountNumber    String?          @map("account_number")
+  accountHolder    String?          @map("account_holder")
   monthlySalary    Int?             @map("monthly_salary")
   actualHours      Decimal          @default(0) @map("actual_hours") @db.Decimal(6, 2)
   isFullAttendance Boolean          @default(false) @map("is_full_attendance")

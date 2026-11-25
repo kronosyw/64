@@ -1,4 +1,10 @@
-import { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -14,9 +20,9 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-line pb-4">
       <div>
-        <h1 className="text-2xl font-bold text-ink">{title}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">{title}</h1>
         {description ? <p className="mt-1 text-sm text-muted">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -24,31 +30,100 @@ export function PageHeader({
   );
 }
 
-export function Panel({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx("rounded-panel border border-line bg-card p-4", className)}>{children}</div>;
+export function Panel({
+  children,
+  className,
+  title,
+  description,
+  actions,
+}: {
+  children: ReactNode;
+  className?: string;
+  title?: string;
+  description?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <section className="rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+      {title || actions ? (
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-3">
+          <div>
+            {title ? <h2 className="font-semibold text-ink">{title}</h2> : null}
+            {description ? <p className="mt-0.5 text-sm text-muted">{description}</p> : null}
+          </div>
+          {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        </div>
+      ) : null}
+      <div className={cx("p-4", className)}>{children}</div>
+    </section>
+  );
 }
 
-type ButtonVariant = "primary" | "ghost" | "danger";
+type ButtonVariant = "primary" | "ghost" | "danger" | "soft" | "gold" | "link";
+type ButtonSize = "sm" | "md" | "lg";
+
+const buttonVariants: Record<ButtonVariant, string> = {
+  primary:
+    "bg-ink text-paper shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)] hover:bg-[#16345a] active:bg-[#081628]",
+  ghost: "border border-line bg-card text-ink hover:border-ink/25 hover:bg-paper active:bg-line/40",
+  danger: "border border-danger/20 bg-danger/5 text-danger hover:bg-danger/10 active:bg-danger/15",
+  soft: "bg-paper text-ink hover:bg-line/60 active:bg-line",
+  gold: "bg-gold text-ink hover:bg-[#d0b06a] active:bg-[#b8924a]",
+  link: "bg-transparent px-1.5 py-1 text-ink underline-offset-4 hover:underline",
+};
+
+const buttonSizes: Record<ButtonSize, string> = {
+  sm: "min-h-8 px-2.5 py-1 text-xs",
+  md: "min-h-9 px-3.5 py-2 text-sm",
+  lg: "min-h-11 px-4 py-2.5 text-sm",
+};
+
+export function buttonClass({
+  variant = "primary",
+  size = "md",
+  className,
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+} = {}) {
+  return cx(
+    "inline-flex items-center justify-center gap-1.5 rounded-btn font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-paper",
+    "disabled:pointer-events-none disabled:opacity-50",
+    "active:translate-y-px",
+    variant !== "link" && buttonSizes[size],
+    buttonVariants[variant],
+    className,
+  );
+}
 
 export function Button({
   variant = "primary",
+  size = "md",
   className,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
-  const styles: Record<ButtonVariant, string> = {
-    primary: "bg-ink text-paper hover:bg-ink/90 disabled:opacity-60",
-    ghost: "border border-line bg-card text-ink hover:bg-paper",
-    danger: "text-danger hover:bg-danger/10",
-  };
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize }) {
+  return <button {...props} className={buttonClass({ variant, size, className })} />;
+}
+
+export function ButtonLink({
+  href,
+  variant = "ghost",
+  size = "md",
+  className,
+  children,
+}: {
+  href: string;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <button
-      {...props}
-      className={cx(
-        "inline-flex items-center justify-center rounded-btn px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed",
-        styles[variant],
-        className,
-      )}
-    />
+    <a href={href} className={buttonClass({ variant, size, className })}>
+      {children}
+    </a>
   );
 }
 
@@ -56,32 +131,57 @@ export function Field({
   label,
   children,
   className,
+  hint,
 }: {
   label?: string;
   children: ReactNode;
   className?: string;
+  hint?: string;
 }) {
   return (
     <label className={cx("block text-sm text-ink", className)}>
-      {label ? <span className="mb-1 block text-muted">{label}</span> : null}
+      {label ? <span className="mb-1.5 block text-[13px] font-medium text-muted">{label}</span> : null}
       {children}
+      {hint ? <span className="mt-1 block text-xs text-muted">{hint}</span> : null}
     </label>
   );
 }
 
 const controlClass =
-  "w-full rounded-btn border border-line bg-card px-3 py-2 text-sm text-ink outline-none focus:border-ink disabled:opacity-60";
+  "w-full rounded-btn border border-line bg-card px-3 py-2 text-sm text-ink shadow-[inset_0_1px_0_rgba(12,35,64,0.02)] outline-none transition-[border-color,box-shadow] placeholder:text-muted/70 focus:border-ink/40 focus:ring-2 focus:ring-gold/35 disabled:cursor-not-allowed disabled:bg-paper disabled:opacity-60";
 
 export function TextInput({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cx(controlClass, className)} />;
 }
 
 export function TextSelect({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={cx(controlClass, className)} />;
+  return <select {...props} className={cx(controlClass, "pr-8", className)} />;
 }
 
 export function TextTextarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={cx(controlClass, className)} />;
+  return <textarea {...props} className={cx(controlClass, "min-h-24 resize-y", className)} />;
+}
+
+export function CheckLabel({
+  children,
+  className,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & { children: ReactNode }) {
+  return (
+    <label
+      className={cx(
+        "inline-flex cursor-pointer items-center gap-2 rounded-btn border border-line bg-card px-3 py-2 text-sm text-ink transition-colors hover:bg-paper has-[:checked]:border-ink/30 has-[:checked]:bg-paper",
+        className,
+      )}
+    >
+      <input
+        {...props}
+        type="checkbox"
+        className="h-4 w-4 accent-ink"
+      />
+      <span>{children}</span>
+    </label>
+  );
 }
 
 export function Tabs({
@@ -94,7 +194,7 @@ export function Tabs({
   onChange: (id: string | number) => void;
 }) {
   return (
-    <div className="-mx-1 flex gap-1 overflow-x-auto pb-1">
+    <div className="-mx-1 flex gap-1 overflow-x-auto rounded-panel border border-line bg-card p-1">
       {items.map((item) => {
         const active = item.id === value;
         return (
@@ -103,8 +203,10 @@ export function Tabs({
             type="button"
             onClick={() => onChange(item.id)}
             className={cx(
-              "shrink-0 rounded-btn px-3 py-1.5 text-sm transition-colors",
-              active ? "bg-ink font-medium text-paper" : "bg-card text-ink hover:bg-paper",
+              "shrink-0 rounded-btn px-3.5 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
+              active
+                ? "bg-ink font-medium text-paper shadow-sm"
+                : "text-muted hover:bg-paper hover:text-ink",
             )}
           >
             {item.label}
@@ -115,14 +217,79 @@ export function Tabs({
   );
 }
 
-export function EmptyState({ children }: { children: ReactNode }) {
-  return <p className="rounded-panel border border-line bg-card p-6 text-sm text-muted">{children}</p>;
+export function Badge({
+  children,
+  tone = "muted",
+}: {
+  children: ReactNode;
+  tone?: "muted" | "gold" | "ink" | "danger";
+}) {
+  const tones = {
+    muted: "bg-paper text-muted",
+    gold: "bg-gold/20 text-ink",
+    ink: "bg-ink/10 text-ink",
+    danger: "bg-danger/10 text-danger",
+  };
+  return (
+    <span className={cx("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", tones[tone])}>
+      {children}
+    </span>
+  );
 }
 
-export function Message({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "danger" }) {
-  return <p className={cx("text-sm", tone === "danger" ? "text-danger" : "text-muted")}>{children}</p>;
+export function Modal({
+  title,
+  onClose,
+  children,
+  footer,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/45 p-0 backdrop-blur-[2px] md:items-center md:p-6">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[1.25rem] border border-line bg-card shadow-[0_18px_50px_rgba(12,35,64,0.28)] md:rounded-panel"
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-card/95 px-4 py-3 backdrop-blur">
+          <h2 className="text-lg font-semibold text-ink">{title}</h2>
+          <Button type="button" variant="link" size="sm" onClick={onClose} className="text-muted">
+            닫기
+          </Button>
+        </div>
+        <div className="space-y-3 p-4">{children}</div>
+        {footer ? <div className="sticky bottom-0 flex gap-2 border-t border-line bg-card/95 p-4 backdrop-blur">{footer}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+export function EmptyState({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-panel border border-dashed border-line bg-card/70 px-6 py-10 text-center text-sm text-muted">
+      {children}
+    </div>
+  );
+}
+
+export function Message({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "danger" | "ok" }) {
+  const tones = {
+    muted: "border-line bg-card text-muted",
+    danger: "border-danger/25 bg-danger/5 text-danger",
+    ok: "border-ink/15 bg-ink/5 text-ink",
+  };
+  return <p className={cx("rounded-btn border px-3 py-2 text-sm", tones[tone])}>{children}</p>;
 }
 
 export function TableShell({ children }: { children: ReactNode }) {
-  return <div className="overflow-hidden rounded-panel border border-line bg-card">{children}</div>;
+  return (
+    <div className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+      {children}
+    </div>
+  );
 }

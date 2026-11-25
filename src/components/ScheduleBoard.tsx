@@ -3,6 +3,16 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { WORK_TYPE_LABEL, type WorkTypeKey } from "@/lib/roles";
 import { SHIFT_COLORS } from "@/lib/shift-options";
+import {
+  Badge,
+  Button,
+  CheckLabel,
+  Message,
+  Modal,
+  Panel,
+  TextInput,
+  TextSelect,
+} from "@/components/ui";
 
 type Schedule = {
   id: number;
@@ -284,103 +294,104 @@ export function ScheduleBoard({
   return (
     <div className="space-y-4">
       {canEdit ? (
-        <details className="rounded-panel border border-line bg-card p-4">
-          <summary className="cursor-pointer font-semibold">이 지점 근무형태</summary>
-          <p className="mt-1 text-sm text-muted">지점마다 이름과 시간이 다릅니다. 최고관리자, 사장, 지점장만 바꿀 수 있습니다.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {shifts.map((shift) => (
-              <button
-                key={shift.id}
-                type="button"
-                onClick={() => setEditingShift(shift)}
-                className="rounded-full px-3 py-1 text-sm font-medium"
-                style={{ backgroundColor: `${shift.color}22`, color: shift.color }}
-              >
-                {shift.name}
-                {shift.isOff ? "" : ` ${shift.startTime}-${shift.endTime}`}
-              </button>
-            ))}
-            {!shifts.length ? <p className="text-sm text-muted">등록된 근무형태가 없습니다.</p> : null}
-          </div>
-          <form onSubmit={saveShift} className="mt-4 grid gap-2 sm:grid-cols-6">
-            <input
-              className="rounded-btn border px-2 py-2 text-sm sm:col-span-2"
-              placeholder="이름"
-              value={editingShift ? editingShift.name : shiftDraft.name}
-              onChange={(e) =>
-                editingShift
-                  ? setEditingShift({ ...editingShift, name: e.target.value })
-                  : setShiftDraft({ ...shiftDraft, name: e.target.value })
-              }
-              required
-            />
-            <label className="flex items-center gap-2 rounded-btn border px-2 py-2 text-sm">
-              <input
-                type="checkbox"
+        <details className="rounded-panel border border-line bg-card open:shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+          <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-ink marker:content-none [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center justify-between gap-2">
+              이 지점 근무형태
+              <span className="text-xs font-normal text-muted">펼치기</span>
+            </span>
+          </summary>
+          <div className="border-t border-line px-4 pb-4 pt-3">
+            <p className="text-sm text-muted">지점마다 이름과 시간이 다릅니다. 최고관리자, 사장, 지점장만 바꿀 수 있습니다.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {shifts.map((shift) => (
+                <button
+                  key={shift.id}
+                  type="button"
+                  onClick={() => setEditingShift(shift)}
+                  className="rounded-full px-3 py-1.5 text-sm font-medium transition-transform active:scale-95"
+                  style={{ backgroundColor: `${shift.color}22`, color: shift.color }}
+                >
+                  {shift.name}
+                  {shift.isOff ? "" : ` ${shift.startTime}-${shift.endTime}`}
+                </button>
+              ))}
+              {!shifts.length ? <p className="text-sm text-muted">등록된 근무형태가 없습니다.</p> : null}
+            </div>
+            <form onSubmit={saveShift} className="mt-4 grid gap-2 sm:grid-cols-6">
+              <TextInput
+                className="sm:col-span-2"
+                placeholder="이름"
+                value={editingShift ? editingShift.name : shiftDraft.name}
+                onChange={(e) =>
+                  editingShift
+                    ? setEditingShift({ ...editingShift, name: e.target.value })
+                    : setShiftDraft({ ...shiftDraft, name: e.target.value })
+                }
+                required
+              />
+              <CheckLabel
                 checked={editingShift ? editingShift.isOff : shiftDraft.isOff}
                 onChange={(e) =>
                   editingShift
                     ? setEditingShift({ ...editingShift, isOff: e.target.checked })
                     : setShiftDraft({ ...shiftDraft, isOff: e.target.checked })
                 }
+              >
+                휴무
+              </CheckLabel>
+              <TextInput
+                type="time"
+                disabled={editingShift ? editingShift.isOff : shiftDraft.isOff}
+                value={editingShift ? editingShift.startTime || "" : shiftDraft.startTime}
+                onChange={(e) =>
+                  editingShift
+                    ? setEditingShift({ ...editingShift, startTime: e.target.value })
+                    : setShiftDraft({ ...shiftDraft, startTime: e.target.value })
+                }
               />
-              휴무
-            </label>
-            <input
-              type="time"
-              className="rounded-btn border px-2 py-2 text-sm"
-              disabled={editingShift ? editingShift.isOff : shiftDraft.isOff}
-              value={editingShift ? editingShift.startTime || "" : shiftDraft.startTime}
-              onChange={(e) =>
-                editingShift
-                  ? setEditingShift({ ...editingShift, startTime: e.target.value })
-                  : setShiftDraft({ ...shiftDraft, startTime: e.target.value })
-              }
-            />
-            <input
-              type="time"
-              className="rounded-btn border px-2 py-2 text-sm"
-              disabled={editingShift ? editingShift.isOff : shiftDraft.isOff}
-              value={editingShift ? editingShift.endTime || "" : shiftDraft.endTime}
-              onChange={(e) =>
-                editingShift
-                  ? setEditingShift({ ...editingShift, endTime: e.target.value })
-                  : setShiftDraft({ ...shiftDraft, endTime: e.target.value })
-              }
-            />
-            <div className="flex items-center gap-1">
-              {SHIFT_COLORS.map((color) => {
-                const current = editingShift ? editingShift.color : shiftDraft.color;
-                return (
-                  <button
-                    key={color}
-                    type="button"
-                    aria-label={color}
-                    onClick={() =>
-                      editingShift ? setEditingShift({ ...editingShift, color }) : setShiftDraft({ ...shiftDraft, color })
-                    }
-                    className="h-6 w-6 rounded-full border-2"
-                    style={{ backgroundColor: color, borderColor: current === color ? "#0f172a" : "transparent" }}
-                  />
-                );
-              })}
-            </div>
-            <div className="flex gap-2 sm:col-span-6">
-              <button type="submit" className="rounded-btn bg-ink px-3 py-2 text-sm text-paper">
-                {editingShift ? "근무형태 수정" : "근무형태 등록"}
-              </button>
-              {editingShift ? (
-                <>
-                  <button type="button" className="rounded-btn border px-3 py-2 text-sm" onClick={() => setEditingShift(null)}>
-                    새로 등록
-                  </button>
-                  <button type="button" className="rounded-btn px-3 py-2 text-sm text-danger" onClick={() => removeShift(editingShift.id)}>
-                    삭제
-                  </button>
-                </>
-              ) : null}
-            </div>
-          </form>
+              <TextInput
+                type="time"
+                disabled={editingShift ? editingShift.isOff : shiftDraft.isOff}
+                value={editingShift ? editingShift.endTime || "" : shiftDraft.endTime}
+                onChange={(e) =>
+                  editingShift
+                    ? setEditingShift({ ...editingShift, endTime: e.target.value })
+                    : setShiftDraft({ ...shiftDraft, endTime: e.target.value })
+                }
+              />
+              <div className="flex items-center gap-1.5">
+                {SHIFT_COLORS.map((color) => {
+                  const current = editingShift ? editingShift.color : shiftDraft.color;
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={color}
+                      onClick={() =>
+                        editingShift ? setEditingShift({ ...editingShift, color }) : setShiftDraft({ ...shiftDraft, color })
+                      }
+                      className="h-7 w-7 rounded-full border-2 transition-transform active:scale-90"
+                      style={{ backgroundColor: color, borderColor: current === color ? "#0c2340" : "transparent" }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-2 sm:col-span-6">
+                <Button type="submit">{editingShift ? "근무형태 수정" : "근무형태 등록"}</Button>
+                {editingShift ? (
+                  <>
+                    <Button type="button" variant="ghost" onClick={() => setEditingShift(null)}>
+                      새로 등록
+                    </Button>
+                    <Button type="button" variant="danger" onClick={() => removeShift(editingShift.id)}>
+                      삭제
+                    </Button>
+                  </>
+                ) : null}
+              </div>
+            </form>
+          </div>
         </details>
       ) : null}
 
@@ -407,15 +418,15 @@ export function ScheduleBoard({
             );
           })}
         </div>
-        <div className="mt-2 rounded-2xl bg-card p-3">
+        <div className="mt-2 rounded-panel border border-line bg-card p-3 shadow-[0_1px_0_rgba(12,35,64,0.04)]">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-semibold">
+            <h2 className="font-semibold text-ink">
               {month}월 {selectedDay}일 {WEEKDAYS[new Date(year, month - 1, selectedDay).getDay()]}
             </h2>
             {canEdit ? (
-              <button type="button" onClick={() => openCreate(selectedDay)} className="rounded-full bg-ink px-3 py-1.5 text-sm text-paper">
+              <Button type="button" size="sm" onClick={() => openCreate(selectedDay)}>
                 등록
-              </button>
+              </Button>
             ) : null}
           </div>
           <div className="space-y-2">
@@ -424,7 +435,7 @@ export function ScheduleBoard({
                 key={schedule.id}
                 type="button"
                 onClick={() => openEdit(schedule)}
-                className="flex w-full gap-3 rounded-panel border border-line px-3 py-3 text-left"
+                className="flex w-full gap-3 rounded-panel border border-line bg-paper/40 px-3 py-3 text-left transition-colors hover:bg-paper"
                 style={{ borderLeft: `4px solid ${colorOf(schedule, shifts)}` }}
               >
                 <div className="w-16 shrink-0 text-sm text-muted">
@@ -498,110 +509,97 @@ export function ScheduleBoard({
         </div>
       </div>
 
-      {message ? <p className="text-sm text-muted">{message}</p> : null}
+      {message ? <Message>{message}</Message> : null}
 
       {editor ? (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/40 p-0 md:items-center md:p-6">
-          <form onSubmit={saveSchedule} className="w-full max-w-lg rounded-t-2xl bg-card p-4 shadow-xl md:rounded-2xl">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{editor.id ? "일정 수정" : "일정 등록"}</h2>
-              <button type="button" className="text-sm text-muted" onClick={() => setEditor(null)}>
-                닫기
-              </button>
-            </div>
-            <div className="grid gap-2">
-              <select
-                className="rounded-btn border px-3 py-2 text-sm"
-                value={editor.employeeId}
-                onChange={(e) => setEditor({ ...editor, employeeId: e.target.value })}
-                required
-              >
-                <option value="">직원 선택</option>
-                {employees.map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="rounded-btn border px-3 py-2 text-sm"
-                value={editor.shiftId}
-                onChange={(e) => applyShift(e.target.value)}
-                required
-              >
-                <option value="">근무형태</option>
-                {shifts.map((shift) => (
-                  <option key={shift.id} value={shift.id}>
-                    {shift.name}
-                    {shift.isOff ? "" : ` ${shift.startTime}-${shift.endTime}`}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="date"
-                className="rounded-btn border px-3 py-2 text-sm"
-                value={editor.workDate}
-                onChange={(e) => setEditor({ ...editor, workDate: e.target.value })}
-                required
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="time"
-                  className="rounded-btn border px-3 py-2 text-sm"
-                  value={editor.startTime}
-                  disabled={selectedShift?.isOff}
-                  onChange={(e) => setEditor({ ...editor, startTime: e.target.value })}
-                />
-                <input
-                  type="time"
-                  className="rounded-btn border px-3 py-2 text-sm"
-                  value={editor.endTime}
-                  disabled={selectedShift?.isOff}
-                  onChange={(e) => setEditor({ ...editor, endTime: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button type="submit" className="flex-1 rounded-btn bg-ink py-2.5 text-sm font-medium text-paper">
+        <Modal
+          title={editor.id ? "일정 수정" : "일정 등록"}
+          onClose={() => setEditor(null)}
+          footer={
+            <>
+              <Button type="submit" form="schedule-editor" className="flex-1" size="lg">
                 저장
-              </button>
+              </Button>
               {editor.id ? (
-                <button type="button" className="rounded-btn px-3 py-2.5 text-sm text-danger" onClick={() => removeSchedule(editor.id!)}>
+                <Button type="button" variant="danger" size="lg" onClick={() => removeSchedule(editor.id!)}>
                   삭제
-                </button>
+                </Button>
               ) : null}
+            </>
+          }
+        >
+          <form id="schedule-editor" onSubmit={saveSchedule} className="grid gap-3">
+            <TextSelect
+              value={editor.employeeId}
+              onChange={(e) => setEditor({ ...editor, employeeId: e.target.value })}
+              required
+            >
+              <option value="">직원 선택</option>
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.name}
+                </option>
+              ))}
+            </TextSelect>
+            <TextSelect value={editor.shiftId} onChange={(e) => applyShift(e.target.value)} required>
+              <option value="">근무형태</option>
+              {shifts.map((shift) => (
+                <option key={shift.id} value={shift.id}>
+                  {shift.name}
+                  {shift.isOff ? "" : ` ${shift.startTime}-${shift.endTime}`}
+                </option>
+              ))}
+            </TextSelect>
+            <TextInput
+              type="date"
+              value={editor.workDate}
+              onChange={(e) => setEditor({ ...editor, workDate: e.target.value })}
+              required
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <TextInput
+                type="time"
+                value={editor.startTime}
+                disabled={selectedShift?.isOff}
+                onChange={(e) => setEditor({ ...editor, startTime: e.target.value })}
+              />
+              <TextInput
+                type="time"
+                value={editor.endTime}
+                disabled={selectedShift?.isOff}
+                onChange={(e) => setEditor({ ...editor, endTime: e.target.value })}
+              />
             </div>
           </form>
-        </div>
+        </Modal>
       ) : null}
 
       {showMemo ? (
-        <div className="rounded-panel border border-line bg-card p-4">
-          <h2 className="mb-3 font-semibold">메모</h2>
+        <Panel title="메모">
           <div className="mb-3 flex gap-2">
-            <input
-              className="flex-1 rounded-btn border px-3 py-2 text-sm"
+            <TextInput
+              className="flex-1"
               placeholder="새 메모"
               value={memoContent}
               onChange={(e) => setMemoContent(e.target.value)}
             />
-            <button type="button" onClick={createMemo} className="rounded-btn bg-gold px-3 py-2 text-sm font-medium text-ink">
+            <Button type="button" variant="gold" onClick={createMemo}>
               작성
-            </button>
+            </Button>
           </div>
           <div className="space-y-2">
             {memos.map((memo) => (
               <div key={memo.id} className="rounded-btn border border-gold/40 bg-gold/10 p-3 text-sm">
                 <div className="mb-1 flex justify-between text-xs text-muted">
                   <span>{memo.author}</span>
-                  {memo.isImportant ? <span className="text-danger">중요</span> : null}
+                  {memo.isImportant ? <Badge tone="danger">중요</Badge> : null}
                 </div>
                 <p>{memo.content}</p>
               </div>
             ))}
             {!memos.length ? <p className="text-sm text-muted">등록된 메모가 없습니다.</p> : null}
           </div>
-        </div>
+        </Panel>
       ) : null}
     </div>
   );

@@ -24,6 +24,12 @@ type CreateEmployeeInput = {
   loginId: string;
   password: string;
   phone?: string | null;
+  ssn?: string | null;
+  hireDate?: Date | null;
+  healthCertExpire?: Date | null;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  accountHolder?: string | null;
   branchId?: number | null;
   ownerBranchIds?: number[];
   monthlySalary?: number | null;
@@ -40,6 +46,12 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
     loginId,
     password,
     phone,
+    ssn,
+    hireDate,
+    healthCertExpire,
+    bankName,
+    accountNumber,
+    accountHolder,
     branchId,
     ownerBranchIds = [],
     monthlySalary,
@@ -107,6 +119,12 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
         loginId: loginId.trim(),
         passwordHash,
         phone: phone || null,
+        ssn: ssn?.trim() || null,
+        hireDate: hireDate ?? null,
+        healthCertExpire: healthCertExpire ?? null,
+        bankName: bankName?.trim() || null,
+        accountNumber: accountNumber?.trim() || null,
+        accountHolder: accountHolder?.trim() || null,
         branchId: role === Role.OWNER || role === Role.SUPERADMIN ? null : branchId!,
         monthlySalary: monthlySalary ?? null,
         insuranceType:

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { BranchSwitcher } from "@/components/BranchSwitcher";
 import { ScheduleBoard } from "@/components/ScheduleBoard";
-import { EmptyState, PageHeader } from "@/components/ui";
+import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
 import { prisma } from "@/lib/prisma";
 import { canEditSchedule, canViewMemo } from "@/lib/roles";
 import { pickBranchId, requireSession } from "@/lib/session";
@@ -51,18 +51,18 @@ export default async function HomePage({
             ) : (
               <div className="text-sm text-muted">지점: {current?.name ?? "-"}</div>
             )}
-            <a
-              className="rounded-btn border border-line bg-card px-2 py-1 text-sm text-ink"
+            <ButtonLink
               href={`/?branchId=${branchId}&year=${prevYear}&month=${prevMonth}`}
+              size="sm"
             >
               이전달
-            </a>
-            <a
-              className="rounded-btn border border-line bg-card px-2 py-1 text-sm text-ink"
+            </ButtonLink>
+            <ButtonLink
               href={`/?branchId=${branchId}&year=${nextYear}&month=${nextMonth}`}
+              size="sm"
             >
               다음달
-            </a>
+            </ButtonLink>
           </>
         }
       />

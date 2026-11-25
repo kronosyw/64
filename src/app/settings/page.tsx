@@ -50,10 +50,10 @@ export default function SettingsPage() {
               required
             />
           </Field>
-          <Button type="submit" className="w-full">
+          <Button type="submit" size="lg" className="w-full">
             변경
           </Button>
-          {message ? <Message tone={ok ? "muted" : "danger"}>{message}</Message> : null}
+          {message ? <Message tone={ok ? "ok" : "danger"}>{message}</Message> : null}
         </form>
       </Panel>
     </div>

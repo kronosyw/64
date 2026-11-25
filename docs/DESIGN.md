@@ -49,10 +49,13 @@ Tailwind에서는 `bg-ink`, `text-paper`, `border-line`처럼 씁니다.
 
 ## 공통 조각
 
-`src/components/ui.tsx`
+`src/components/ui.tsx` — Tailwind 유틸로 구성. 새 화면은 여기 조각을 먼저 쓴다.
 
 - `PageHeader` — 제목 + 한 줄 설명 + 우측 액션
-- `Panel` — 카드 컨테이너
-- `Button` — primary / ghost / danger
-- `Field` — 라벨 + 입력
+- `Panel` — 카드 컨테이너 (선택적 title/actions)
+- `Button` / `ButtonLink` — primary · ghost · danger · soft · gold · link, 크기 sm/md/lg
+- `Field` · `TextInput` · `TextSelect` · `TextTextarea` · `CheckLabel`
 - `Tabs` — 지점·필터 탭
+- `Badge` · `Modal` · `Message` · `EmptyState` · `TableShell`
+
+버튼은 포커스에 금색 링, 눌림에 아주 얕은 이동만 쓴다. 페이지마다 임의 `bg-blue-*` 버튼을 만들지 않는다.

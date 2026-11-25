@@ -1,26 +1,102 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, PageHeader, Panel, TableShell, TextInput, TextSelect } from "@/components/ui";
+import { Badge, Button, PageHeader, Panel, TableShell, TextInput, TextSelect } from "@/components/ui";
+import { categoryLabel, maskSsn, toDateInput } from "@/lib/hr";
 
 type Branch = { id: number; name: string };
+type PayrollItem = {
+  id: number;
+  employeeName: string;
+  employeeCategory: string;
+  ssn: string | null;
+  hireDate: string | null;
+  bankName: string | null;
+  accountNumber: string | null;
+  accountHolder: string | null;
+  monthlySalary: number | null;
+  actualHours: string | number;
+  workDays: number;
+  basePay: number;
+  overtimePay: number;
+  totalPay: number;
+  taxAmount: number;
+  netPay: number;
+};
 type Payroll = {
   id: number;
   year: number;
   month: number;
   status: string;
   taxType: string;
+  branch?: { name: string };
   _count?: { items: number };
-  items?: {
-    id: number;
-    employeeName: string;
-    employeeCategory: string;
-    actualHours: string | number;
-    totalPay: number;
-    taxAmount: number;
-    netPay: number;
-  }[];
+  items?: PayrollItem[];
 };
+
+function csvEscape(value: string | number | null | undefined) {
+  const text = value == null ? "" : String(value);
+  if (/[",\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
+}
+
+function downloadLedger(payroll: Payroll) {
+  if (!payroll.items?.length) return;
+  const headers = [
+    "연",
+    "월",
+    "지점",
+    "이름",
+    "근무형태",
+    "주민등록번호",
+    "입사일",
+    "은행",
+    "계좌번호",
+    "예금주",
+    "기준급여",
+    "근무일",
+    "시간",
+    "기본급",
+    "연장",
+    "총지급",
+    "공제",
+    "실지급",
+  ];
+  const rows = payroll.items.map((i) =>
+    [
+      payroll.year,
+      payroll.month,
+      payroll.branch?.name ?? "",
+      i.employeeName,
+      categoryLabel(i.employeeCategory),
+      i.ssn ?? "",
+      toDateInput(i.hireDate),
+      i.bankName ?? "",
+      i.accountNumber ?? "",
+      i.accountHolder ?? "",
+      i.monthlySalary ?? "",
+      i.workDays,
+      i.actualHours,
+      i.basePay,
+      i.overtimePay,
+      i.totalPay,
+      i.taxAmount,
+      i.netPay,
+    ]
+      .map(csvEscape)
+      .join(","),
+  );
+  const bom = "\uFEFF";
+  const blob = new Blob([bom + [headers.join(","), ...rows].join("\n")], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `급여대장_${payroll.year}-${String(payroll.month).padStart(2, "0")}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function PayrollPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -82,6 +158,7 @@ export default function PayrollPage() {
     <div className="space-y-6">
       <PageHeader
         title="급여대장"
+        description="직원정보의 근무형태·주민번호·계좌가 명세서와 세무사 전달용 대장에 들어갑니다."
         actions={
           <TextSelect className="w-auto" value={branchId ?? ""} onChange={(e) => setBranchId(Number(e.target.value))}>
             {branches.map((b) => (
@@ -136,9 +213,9 @@ export default function PayrollPage() {
                 <td className="px-3 py-2">{p.status}</td>
                 <td className="px-3 py-2 font-mono">{p._count?.items ?? 0}</td>
                 <td className="px-3 py-2 text-right">
-                  <button type="button" className="text-ink" onClick={() => openPayroll(p.id)}>
+                  <Button type="button" variant="link" size="sm" onClick={() => openPayroll(p.id)}>
                     보기
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -148,33 +225,53 @@ export default function PayrollPage() {
 
       {selected?.items ? (
         <TableShell>
-          <div className="border-b border-line px-3 py-2 font-semibold text-ink">
-            {selected.year}-{selected.month} 상세
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-2">
+            <div className="font-semibold text-ink">
+              {selected.year}-{selected.month} 상세
+              {selected.branch?.name ? ` · ${selected.branch.name}` : ""}
+            </div>
+            <Button type="button" variant="ghost" size="sm" onClick={() => downloadLedger(selected)}>
+              세무사 급여대장 CSV
+            </Button>
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-paper text-left text-muted">
-              <tr>
-                <th className="px-3 py-2">이름</th>
-                <th className="px-3 py-2">구분</th>
-                <th className="px-3 py-2">시간</th>
-                <th className="px-3 py-2">총지급</th>
-                <th className="px-3 py-2">공제</th>
-                <th className="px-3 py-2">실지급</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selected.items.map((i) => (
-                <tr key={i.id} className="border-t border-line">
-                  <td className="px-3 py-2">{i.employeeName}</td>
-                  <td className="px-3 py-2">{i.employeeCategory}</td>
-                  <td className="px-3 py-2 font-mono">{String(i.actualHours)}</td>
-                  <td className="px-3 py-2 font-mono">{i.totalPay.toLocaleString()}</td>
-                  <td className="px-3 py-2 font-mono">{i.taxAmount.toLocaleString()}</td>
-                  <td className="px-3 py-2 font-mono">{i.netPay.toLocaleString()}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-sm">
+              <thead className="bg-paper text-left text-muted">
+                <tr>
+                  <th className="px-3 py-2">이름</th>
+                  <th className="px-3 py-2">근무형태</th>
+                  <th className="px-3 py-2">주민번호</th>
+                  <th className="px-3 py-2">계좌</th>
+                  <th className="px-3 py-2">시간</th>
+                  <th className="px-3 py-2">총지급</th>
+                  <th className="px-3 py-2">공제</th>
+                  <th className="px-3 py-2">실지급</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {selected.items.map((i) => (
+                  <tr key={i.id} className="border-t border-line">
+                    <td className="px-3 py-2 font-medium text-ink">{i.employeeName}</td>
+                    <td className="px-3 py-2">
+                      <Badge tone={i.employeeCategory === "BUSINESS_INCOME_33" ? "gold" : "ink"}>
+                        {categoryLabel(i.employeeCategory)}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs">{maskSsn(i.ssn)}</td>
+                    <td className="px-3 py-2 text-xs text-muted">
+                      {i.bankName || i.accountNumber
+                        ? `${i.bankName ?? ""} ${i.accountNumber ?? ""}`.trim()
+                        : "미등록"}
+                    </td>
+                    <td className="px-3 py-2 font-mono">{String(i.actualHours)}</td>
+                    <td className="px-3 py-2 font-mono">{i.totalPay.toLocaleString()}</td>
+                    <td className="px-3 py-2 font-mono">{i.taxAmount.toLocaleString()}</td>
+                    <td className="px-3 py-2 font-mono font-medium text-ink">{i.netPay.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </TableShell>
       ) : null}
     </div>

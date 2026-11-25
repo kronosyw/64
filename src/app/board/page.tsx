@@ -2,11 +2,13 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import {
+  Badge,
   Button,
+  CheckLabel,
   EmptyState,
   Message,
+  Modal,
   PageHeader,
-  Panel,
   Tabs,
   TextInput,
   TextTextarea,
@@ -135,115 +137,101 @@ export default function BoardPage() {
         onChange={(id) => load(Number(id))}
       />
 
-      {message ? <Message>{message}</Message> : null}
+      {message ? <Message tone="ok">{message}</Message> : null}
 
       <div className="space-y-3">
         {posts.map((post) => (
           <article
             key={post.id}
-            className={`rounded-panel border bg-card p-4 ${post.isNotice ? "border-gold" : "border-line"}`}
+            className={`rounded-panel border bg-card p-4 shadow-[0_1px_0_rgba(12,35,64,0.04)] ${
+              post.isNotice ? "border-gold" : "border-line"
+            }`}
           >
-            <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-              {post.isNotice ? (
-                <span className="rounded-full bg-gold/20 px-2 py-0.5 font-medium text-ink">공지</span>
-              ) : null}
-              <span className="rounded-full bg-paper px-2 py-0.5 text-muted">
-                {post.isAll ? "전체" : post.branchNames.join(", ")}
-              </span>
-              <span className="font-mono text-muted">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              {post.isNotice ? <Badge tone="gold">공지</Badge> : null}
+              <Badge>{post.isAll ? "전체" : post.branchNames.join(", ")}</Badge>
+              <span className="font-mono text-xs text-muted">
                 {post.authorName} · {post.createdAt.slice(0, 16).replace("T", " ")}
               </span>
             </div>
             <div className="flex items-start justify-between gap-3">
               <h2 className="font-semibold text-ink">{post.title}</h2>
               {post.canEdit ? (
-                <button type="button" className="shrink-0 text-sm text-ink" onClick={() => openEdit(post)}>
+                <Button type="button" variant="link" size="sm" onClick={() => openEdit(post)}>
                   수정
-                </button>
+                </Button>
               ) : null}
             </div>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-ink/80">{post.content}</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink/80">{post.content}</p>
           </article>
         ))}
         {!posts.length ? <EmptyState>이 지점에 글이 없습니다. 글쓰기로 첫 글을 남겨 보세요.</EmptyState> : null}
       </div>
 
       {draft ? (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/40 md:items-center md:p-6">
-          <form
-            onSubmit={save}
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-line bg-card p-4 md:rounded-panel"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-ink">{draft.id ? "글 수정" : "글쓰기"}</h2>
-              <button type="button" className="text-sm text-muted" onClick={() => setDraft(null)}>
-                닫기
-              </button>
-            </div>
-            <div className="space-y-3">
-              <TextInput
-                placeholder="제목"
-                value={draft.title}
-                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                required
-              />
-              <TextTextarea
-                className="h-36"
-                placeholder="내용"
-                value={draft.content}
-                onChange={(e) => setDraft({ ...draft, content: e.target.value })}
-                required
-              />
-              <label className="flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  checked={draft.isNotice}
-                  onChange={(e) => setDraft({ ...draft, isNotice: e.target.checked })}
-                />
-                공지
-              </label>
-              <div className="rounded-btn border border-line p-3">
-                <p className="mb-2 text-sm font-medium text-ink">볼 수 있는 지점</p>
-                <label className="mb-2 flex items-center gap-2 text-sm text-ink">
-                  <input
-                    type="checkbox"
-                    checked={draft.isAll}
-                    onChange={(e) =>
-                      setDraft({ ...draft, isAll: e.target.checked, branchIds: e.target.checked ? [] : draft.branchIds })
-                    }
-                  />
-                  전체
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {branches.map((branch) => (
-                    <label
-                      key={branch.id}
-                      className={`flex items-center gap-1 rounded-full border border-line px-2 py-1 text-sm ${draft.isAll ? "opacity-40" : ""}`}
-                    >
-                      <input
-                        type="checkbox"
-                        disabled={draft.isAll}
-                        checked={!draft.isAll && draft.branchIds.includes(branch.id)}
-                        onChange={() => toggleBranch(branch.id)}
-                      />
-                      {branch.name}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <Button type="submit" className="flex-1 py-2.5">
+        <Modal
+          title={draft.id ? "글 수정" : "글쓰기"}
+          onClose={() => setDraft(null)}
+          footer={
+            <>
+              <Button type="submit" form="board-editor" className="flex-1" size="lg">
                 저장
               </Button>
               {draft.id ? (
-                <Button type="button" variant="danger" onClick={() => remove(draft.id!)}>
+                <Button type="button" variant="danger" size="lg" onClick={() => remove(draft.id!)}>
                   삭제
                 </Button>
               ) : null}
+            </>
+          }
+        >
+          <form id="board-editor" onSubmit={save} className="space-y-3">
+            <TextInput
+              placeholder="제목"
+              value={draft.title}
+              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+              required
+            />
+            <TextTextarea
+              className="h-36"
+              placeholder="내용"
+              value={draft.content}
+              onChange={(e) => setDraft({ ...draft, content: e.target.value })}
+              required
+            />
+            <CheckLabel
+              checked={draft.isNotice}
+              onChange={(e) => setDraft({ ...draft, isNotice: e.target.checked })}
+            >
+              공지
+            </CheckLabel>
+            <div className="rounded-btn border border-line bg-paper/50 p-3">
+              <p className="mb-2 text-sm font-medium text-ink">볼 수 있는 지점</p>
+              <CheckLabel
+                className="mb-2"
+                checked={draft.isAll}
+                onChange={(e) =>
+                  setDraft({ ...draft, isAll: e.target.checked, branchIds: e.target.checked ? [] : draft.branchIds })
+                }
+              >
+                전체
+              </CheckLabel>
+              <div className="flex flex-wrap gap-2">
+                {branches.map((branch) => (
+                  <CheckLabel
+                    key={branch.id}
+                    className={draft.isAll ? "opacity-40" : ""}
+                    disabled={draft.isAll}
+                    checked={!draft.isAll && draft.branchIds.includes(branch.id)}
+                    onChange={() => toggleBranch(branch.id)}
+                  >
+                    {branch.name}
+                  </CheckLabel>
+                ))}
+              </div>
             </div>
           </form>
-        </div>
+        </Modal>
       ) : null}
     </div>
   );
