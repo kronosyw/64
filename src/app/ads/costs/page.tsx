@@ -212,15 +212,23 @@ export default function AdsCostsPage() {
     if (data.success && branchId) loadCosts(branchId, year, month);
   }
 
-  const footerMetrics = useMemo(() => {
+  const footerMetrics: Summary = useMemo(() => {
     if (summary) return summary;
-    return calcAdMetrics({
+    const m = calcAdMetrics({
       adSpend: 0,
       impressions: 0,
       clicks: 0,
       orders: 0,
       orderAmount: 0,
     });
+    return {
+      adSpend: 0,
+      impressions: 0,
+      clicks: 0,
+      orders: 0,
+      orderAmount: 0,
+      ...m,
+    };
   }, [summary]);
 
   return (
