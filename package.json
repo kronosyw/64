@@ -13,7 +13,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "postinstall": "prisma generate",
     "ads:migrate": "tsx scripts/migrate-skadi-ads.ts",
-    "ads:migrate:dry": "tsx scripts/migrate-skadi-ads.ts --dry-run"
+    "ads:migrate:dry": "tsx scripts/migrate-skadi-ads.ts --dry-run",
+    "branches:merge-dupes": "tsx scripts/merge-duplicate-branches.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

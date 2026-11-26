@@ -23,11 +23,13 @@ async function main() {
   const superPassword = process.env.SEED_SUPER_PASSWORD || password;
   const superName = process.env.SEED_SUPER_NAME || "최고관리자";
 
-  // Legacy single-branch env still creates HQ if requested; default is Songpa+Yatap.
-  if (process.env.SEED_BRANCH_CODE && process.env.SEED_BRANCH_CODE !== "SP01") {
+  // Ignore legacy env codes that alias Songpa/Yatap (prevents duplicate branches).
+  const legacyCode = process.env.SEED_BRANCH_CODE?.trim();
+  const aliasOfCanonical = new Set(["64SP", "64BY", "SP01", "YT01"]);
+  if (legacyCode && !aliasOfCanonical.has(legacyCode)) {
     BRANCHES.unshift({
-      code: process.env.SEED_BRANCH_CODE,
-      name: process.env.SEED_BRANCH_NAME || process.env.SEED_BRANCH_CODE,
+      code: legacyCode,
+      name: process.env.SEED_BRANCH_NAME || legacyCode,
     });
   }
 
