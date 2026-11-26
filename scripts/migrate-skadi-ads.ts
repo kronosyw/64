@@ -13,12 +13,19 @@
  *   costs: [{ platform_id, store_id, cost_date, ad_spend, impressions, clicks, orders, order_amount, ctr, cvr, cpc, cpa, roas, notes, memo, check_time }]
  * }
  */
-import { PrismaClient, StoreType } from "@prisma/client";
+import { Prisma, PrismaClient, StoreType } from "@prisma/client";
 import fs from "node:fs";
 import path from "node:path";
 import { calcAdMetrics } from "../src/lib/ads";
 
 const prisma = new PrismaClient();
+const BATCH = 250;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
 
 type Dump = {
   platforms: Array<{
@@ -242,52 +249,117 @@ async function main() {
     if (!dryRun) newStoreIdsByOld.set(Number(s.store_id), createdIds);
   }
 
-  let reviewUpserts = 0;
+  const reviewRows: Array<{
+    storeId: number;
+    reviewDate: string;
+    reviewCount: number;
+    ratingAvg: number | null;
+    notes: string | null;
+  }> = [];
   for (const r of dump.reviews || []) {
     const targets = newStoreIdsByOld.get(Number(r.store_id)) || [];
     if (dryRun) {
-      reviewUpserts += targets.length || 1;
+      reviewRows.push({
+        storeId: 0,
+        reviewDate: String(r.review_date).slice(0, 10),
+        reviewCount: 0,
+        ratingAvg: null,
+        notes: null,
+      });
       continue;
     }
     for (const storeId of targets) {
-      await prisma.adReview.upsert({
-        where: {
-          storeId_reviewDate: {
-            storeId,
-            reviewDate: new Date(String(r.review_date).slice(0, 10)),
-          },
-        },
-        create: {
-          storeId,
-          reviewDate: new Date(String(r.review_date).slice(0, 10)),
-          reviewCount: Number(r.review_count || 0),
-          ratingAvg: r.rating_avg != null ? Number(r.rating_avg) : null,
-          notes: r.notes || null,
-        },
-        update: {
-          reviewCount: Number(r.review_count || 0),
-          ratingAvg: r.rating_avg != null ? Number(r.rating_avg) : null,
-          notes: r.notes || null,
-        },
+      reviewRows.push({
+        storeId,
+        reviewDate: String(r.review_date).slice(0, 10),
+        reviewCount: Number(r.review_count || 0),
+        ratingAvg: r.rating_avg != null ? Number(r.rating_avg) : null,
+        notes: r.notes || null,
       });
-      reviewUpserts += 1;
     }
   }
+  let reviewUpserts = reviewRows.length;
+  if (!dryRun) {
+    for (const batch of chunk(reviewRows, BATCH)) {
+      const values = Prisma.join(
+        batch.map(
+          (row) =>
+            Prisma.sql`(${row.storeId}, ${row.reviewDate}::date, ${row.reviewCount}, ${row.ratingAvg}, ${row.notes}, NOW(), NOW())`,
+        ),
+      );
+      await prisma.$executeRaw`
+        INSERT INTO ad_reviews (store_id, review_date, review_count, rating_avg, notes, created_at, updated_at)
+        VALUES ${values}
+        ON CONFLICT (store_id, review_date) DO UPDATE SET
+          review_count = EXCLUDED.review_count,
+          rating_avg = EXCLUDED.rating_avg,
+          notes = EXCLUDED.notes,
+          updated_at = NOW()
+      `;
+    }
+    console.log(`reviews upserted=${reviewUpserts}`);
+  }
 
-  let costUpserts = 0;
+  const storeMeta = dryRun
+    ? new Map<number, { branchId: number; platformId: number }>()
+    : new Map(
+        (
+          await prisma.adStore.findMany({
+            where: { id: { in: [...new Set([...newStoreIdsByOld.values()].flat())] } },
+            select: { id: true, branchId: true, platformId: true },
+          })
+        ).map((s) => [s.id, { branchId: s.branchId, platformId: s.platformId }] as const),
+      );
+
+  const costRows: Array<{
+    branchId: number;
+    platformId: number;
+    storeId: number;
+    costDate: string;
+    adSpend: number;
+    impressions: number;
+    clicks: number;
+    orders: number;
+    orderAmount: number;
+    ctr: number;
+    cvr: number;
+    cpc: number;
+    cpa: number;
+    roas: number;
+    notes: string | null;
+    memo: string | null;
+    checkTime: string | null;
+  }> = [];
   for (const c of dump.costs || []) {
     const targets = newStoreIdsByOld.get(Number(c.store_id)) || [];
-    // own costs should map to a single store
     const storeId = targets[0];
-    if (!storeId && !dryRun) {
+    if (dryRun) {
+      costRows.push({
+        branchId: 0,
+        platformId: 0,
+        storeId: 0,
+        costDate: String(c.cost_date).slice(0, 10),
+        adSpend: 0,
+        impressions: 0,
+        clicks: 0,
+        orders: 0,
+        orderAmount: 0,
+        ctr: 0,
+        cvr: 0,
+        cpc: 0,
+        cpa: 0,
+        roas: 0,
+        notes: null,
+        memo: null,
+        checkTime: null,
+      });
+      continue;
+    }
+    if (!storeId) {
       console.warn(`skip cost store=${c.store_id} date=${c.cost_date}: no mapped store`);
       continue;
     }
-    if (dryRun) {
-      costUpserts += 1;
-      continue;
-    }
-    const store = await prisma.adStore.findUnique({ where: { id: storeId } });
+    const store = storeMeta.get(storeId);
     if (!store) continue;
     const code = platformCodeByOldId.get(Number(c.platform_id));
     const platformId = (code && platformIdByCode.get(code)) || store.platformId;
@@ -306,43 +378,57 @@ async function main() {
             roas: Number(c.roas),
           }
         : calcAdMetrics({ adSpend, impressions, clicks, orders, orderAmount });
-
-    await prisma.adCost.upsert({
-      where: {
-        storeId_costDate: {
-          storeId,
-          costDate: new Date(String(c.cost_date).slice(0, 10)),
-        },
-      },
-      create: {
-        branchId: store.branchId,
-        platformId,
-        storeId,
-        costDate: new Date(String(c.cost_date).slice(0, 10)),
-        adSpend,
-        impressions,
-        clicks,
-        orders,
-        orderAmount,
-        ...metrics,
-        notes: c.notes || null,
-        memo: c.memo ? String(c.memo).slice(0, 10) : null,
-        checkTime: c.check_time ? String(c.check_time).slice(0, 10) : null,
-      },
-      update: {
-        platformId,
-        adSpend,
-        impressions,
-        clicks,
-        orders,
-        orderAmount,
-        ...metrics,
-        notes: c.notes || null,
-        memo: c.memo ? String(c.memo).slice(0, 10) : null,
-        checkTime: c.check_time ? String(c.check_time).slice(0, 10) : null,
-      },
+    costRows.push({
+      branchId: store.branchId,
+      platformId,
+      storeId,
+      costDate: String(c.cost_date).slice(0, 10),
+      adSpend,
+      impressions,
+      clicks,
+      orders,
+      orderAmount,
+      ...metrics,
+      notes: c.notes || null,
+      memo: c.memo ? String(c.memo).slice(0, 10) : null,
+      checkTime: c.check_time ? String(c.check_time).slice(0, 10) : null,
     });
-    costUpserts += 1;
+  }
+  let costUpserts = costRows.length;
+  if (!dryRun) {
+    for (const batch of chunk(costRows, BATCH)) {
+      const values = Prisma.join(
+        batch.map(
+          (row) =>
+            Prisma.sql`(${row.branchId}, ${row.platformId}, ${row.storeId}, ${row.costDate}::date, ${row.adSpend}, ${row.impressions}, ${row.clicks}, ${row.orders}, ${row.orderAmount}, ${row.ctr}, ${row.cvr}, ${row.cpc}, ${row.cpa}, ${row.roas}, ${row.notes}, ${row.memo}, ${row.checkTime}, NOW(), NOW())`,
+        ),
+      );
+      await prisma.$executeRaw`
+        INSERT INTO ad_costs (
+          branch_id, platform_id, store_id, cost_date, ad_spend, impressions, clicks, orders, order_amount,
+          ctr, cvr, cpc, cpa, roas, notes, memo, check_time, created_at, updated_at
+        )
+        VALUES ${values}
+        ON CONFLICT (store_id, cost_date) DO UPDATE SET
+          branch_id = EXCLUDED.branch_id,
+          platform_id = EXCLUDED.platform_id,
+          ad_spend = EXCLUDED.ad_spend,
+          impressions = EXCLUDED.impressions,
+          clicks = EXCLUDED.clicks,
+          orders = EXCLUDED.orders,
+          order_amount = EXCLUDED.order_amount,
+          ctr = EXCLUDED.ctr,
+          cvr = EXCLUDED.cvr,
+          cpc = EXCLUDED.cpc,
+          cpa = EXCLUDED.cpa,
+          roas = EXCLUDED.roas,
+          notes = EXCLUDED.notes,
+          memo = EXCLUDED.memo,
+          check_time = EXCLUDED.check_time,
+          updated_at = NOW()
+      `;
+    }
+    console.log(`costs upserted=${costUpserts}`);
   }
 
   console.log(
