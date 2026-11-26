@@ -488,7 +488,7 @@ export function ScheduleBoard({
                         editingShift ? setEditingShift({ ...editingShift, color }) : setShiftDraft({ ...shiftDraft, color })
                       }
                       className="h-7 w-7 rounded-full border-2 transition-transform active:scale-90"
-                      style={{ backgroundColor: color, borderColor: current === color ? "#0c2340" : "transparent" }}
+                      style={{ backgroundColor: color, borderColor: current === color ? "#1a56db" : "transparent" }}
                     />
                   );
                 })}
@@ -522,10 +522,10 @@ export function ScheduleBoard({
                 type="button"
                 onClick={() => setSelectedDay(day)}
                 className={`flex w-12 shrink-0 flex-col items-center rounded-2xl px-1 py-2 text-xs ${
-                  active ? "bg-ink text-paper" : "bg-card text-ink"
+                  active ? "bg-ink text-white" : "bg-card text-foreground"
                 }`}
               >
-                <span className={active ? "text-paper/70" : "text-muted"}>
+                <span className={active ? "text-white/70" : "text-muted"}>
                   {WEEKDAYS[new Date(year, month - 1, day).getDay()]}
                 </span>
                 <span className="text-base font-semibold">{day}</span>
@@ -599,7 +599,7 @@ export function ScheduleBoard({
                     type="button"
                     onClick={() => openCreate(day)}
                     className={`mb-1 flex h-7 w-7 items-center justify-center rounded-full text-sm ${
-                      today === day ? "bg-ink font-semibold text-paper" : "text-ink hover:bg-paper"
+                      today === day ? "bg-ink font-semibold text-white" : "text-foreground hover:bg-paper"
                     }`}
                   >
                     {day}

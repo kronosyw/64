@@ -233,7 +233,7 @@ export default function AdsCostsPage() {
 
   return (
     <div className="space-y-4">
-      <section className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+      <section className="desk-panel overflow-hidden">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-4">
           <div className="flex items-center gap-2">
             <span
@@ -322,7 +322,7 @@ export default function AdsCostsPage() {
         ]}
       />
 
-      <section className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+      <section className="desk-panel overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
           <h2 className="font-semibold text-ink">일별 광고비</h2>
           <p className="text-[11px] text-muted">

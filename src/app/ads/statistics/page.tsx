@@ -77,7 +77,7 @@ export default function AdsStatisticsPage() {
 
   return (
     <div className="space-y-4">
-      <section className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+      <section className="desk-panel overflow-hidden">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-ink">광고통계</h1>
@@ -150,7 +150,7 @@ export default function AdsStatisticsPage() {
               label: m.month.slice(5),
               value: m.totalAdSpend,
             }))}
-            color="#0c2340"
+            color="#1a56db"
           />
         </Panel>
       </div>

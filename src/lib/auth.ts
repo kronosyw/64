@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { EmploymentStatus, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { needsStaffLogin } from "@/lib/employees";
 
 export type SessionUser = {
   id: string;
@@ -51,16 +52,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       name: "credentials",
       credentials: {
+        mode: { label: "mode", type: "text" },
         loginId: { label: "아이디", type: "text" },
+        branchId: { label: "지점", type: "text" },
+        name: { label: "이름", type: "text" },
         password: { label: "비밀번호", type: "password" },
       },
       async authorize(credentials) {
-        const loginId = String(credentials?.loginId ?? "").trim();
+        const mode = String(credentials?.mode ?? "admin").trim();
         const password = String(credentials?.password ?? "");
-        if (!loginId || !password) return null;
+        if (!password) return null;
 
-        const employee = await prisma.employee.findUnique({ where: { loginId } });
+        let employee =
+          mode === "staff"
+            ? null
+            : await (async () => {
+                const loginId = String(credentials?.loginId ?? "").trim();
+                if (!loginId) return null;
+                return prisma.employee.findUnique({ where: { loginId } });
+              })();
+
+        if (mode === "staff") {
+          const branchId = Number(credentials?.branchId);
+          const name = String(credentials?.name ?? "").trim();
+          if (!branchId || !name) return null;
+          employee = await prisma.employee.findFirst({
+            where: {
+              branchId,
+              name,
+              role: { in: [Role.STAFF, Role.PARTTIME] },
+              status: EmploymentStatus.ACTIVE,
+            },
+          });
+        }
+
         if (!employee || employee.status !== EmploymentStatus.ACTIVE) return null;
+
+        // Staff portal rejects manager+ accounts even if somehow matched
+        if (mode === "staff" && !needsStaffLogin(employee.role)) return null;
+        // Admin portal rejects staff accounts (they use staff login)
+        if (mode !== "staff" && needsStaffLogin(employee.role)) return null;
 
         const ok = await bcrypt.compare(password, employee.passwordHash);
         if (!ok) return null;

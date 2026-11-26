@@ -329,7 +329,7 @@ export default function VaultPage() {
                 type="file"
                 multiple
                 accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.hwp,.txt,.zip"
-                className="block w-full text-sm text-muted file:mr-3 file:rounded-btn file:border-0 file:bg-ink file:px-3 file:py-2 file:text-sm file:font-medium file:text-paper"
+                className="block w-full text-sm text-muted file:mr-3 file:rounded-btn file:border-0 file:bg-ink file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
                 onChange={(e) => onPickFiles(e.target.files)}
               />
             </Field>

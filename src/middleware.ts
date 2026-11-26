@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const publicPaths = ["/login", "/icon", "/apple-icon"];
+const publicPaths = ["/login", "/icon", "/apple-icon", "/api/public"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -26,18 +26,34 @@ export async function middleware(req: NextRequest) {
 
   if (!token && !isPublic) {
     const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("callbackUrl", pathname);
+    const staffHint = pathname.startsWith("/login/staff");
+    url.pathname = staffHint ? "/login/staff" : "/login";
+    if (!pathname.startsWith("/login")) url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);
   }
 
-  if (token && pathname === "/login") {
+  if (token && (pathname === "/login" || pathname === "/login/staff" || pathname.startsWith("/login/"))) {
     const url = req.nextUrl.clone();
     url.pathname = "/";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 
   const role = token?.role as string | undefined;
+  const isStaff = role === "STAFF" || role === "PARTTIME";
+
+  if (token && isStaff) {
+    const allowed =
+      pathname === "/" ||
+      pathname.startsWith("/api/schedules") ||
+      pathname.startsWith("/api/shifts") ||
+      pathname.startsWith("/api/auth") ||
+      pathname.startsWith("/api/branches");
+    if (!allowed) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+  }
+
   const opsOnly = ["/branches", "/employees", "/attendance", "/payroll", "/statistics", "/ads"];
   const ownerOnly = ["/branches", "/vault"];
 
@@ -51,6 +67,10 @@ export async function middleware(req: NextRequest) {
     if (role !== "SUPERADMIN" && role !== "OWNER") {
       return NextResponse.redirect(new URL("/", req.url));
     }
+  }
+
+  if (token && isStaff && (pathname === "/board" || pathname.startsWith("/board/") || pathname === "/settings" || pathname.startsWith("/settings/"))) {
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   return NextResponse.next();

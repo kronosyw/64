@@ -12,18 +12,14 @@ const ITEMS = [
 export function AdsSubnav() {
   const pathname = usePathname();
   return (
-    <nav aria-label="광고 메뉴" className="mb-1 flex gap-1 overflow-x-auto rounded-btn border border-line bg-paper/60 p-1">
+    <nav aria-label="광고 메뉴" className="desk-toolbar mb-0 overflow-x-auto">
       {ITEMS.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={`shrink-0 rounded-[0.55rem] px-3.5 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 ${
-              active
-                ? "bg-ink font-semibold text-paper shadow-sm"
-                : "font-medium text-muted hover:bg-card hover:text-ink"
-            }`}
+            className={`desk-chip shrink-0 ${active ? "desk-chip-active" : "desk-chip-idle"}`}
           >
             {item.label}
           </Link>

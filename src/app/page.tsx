@@ -51,18 +51,24 @@ export default async function HomePage({
             ) : (
               <div className="text-sm text-muted">지점: {current?.name ?? "-"}</div>
             )}
-            <ButtonLink
-              href={`/?branchId=${branchId}&year=${prevYear}&month=${prevMonth}`}
-              size="sm"
-            >
-              이전달
-            </ButtonLink>
-            <ButtonLink
-              href={`/?branchId=${branchId}&year=${nextYear}&month=${nextMonth}`}
-              size="sm"
-            >
-              다음달
-            </ButtonLink>
+            <div className="desk-toolbar">
+              <ButtonLink
+                href={`/?branchId=${branchId}&year=${prevYear}&month=${prevMonth}`}
+                size="sm"
+                variant="soft"
+                className="border-0 bg-transparent shadow-none"
+              >
+                ◀ 이전달
+              </ButtonLink>
+              <ButtonLink
+                href={`/?branchId=${branchId}&year=${nextYear}&month=${nextMonth}`}
+                size="sm"
+                variant="soft"
+                className="border-0 bg-transparent shadow-none"
+              >
+                다음달 ▶
+              </ButtonLink>
+            </div>
           </>
         }
       />

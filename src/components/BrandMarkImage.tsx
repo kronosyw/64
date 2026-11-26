@@ -8,9 +8,10 @@ export function BrandMarkImage({ size }: { size: number }) {
       style={{
         width: size,
         height: size,
-        background: "#0c2340",
+        background: "#1a56db",
         display: "flex",
         position: "relative",
+        borderRadius: 8 * k,
       }}
     >
       <div
@@ -21,7 +22,7 @@ export function BrandMarkImage({ size }: { size: number }) {
           width: top * 2,
           height: top * 2,
           borderRadius: 999,
-          border: `${Math.max(1, 1.7 * k)}px solid #f7f4ec`,
+          border: `${Math.max(1, 1.7 * k)}px solid #ffffff`,
           boxSizing: "border-box",
         }}
       />
@@ -33,7 +34,7 @@ export function BrandMarkImage({ size }: { size: number }) {
           width: 2.8 * k,
           height: 10.4 * k,
           borderRadius: 1.3 * k,
-          background: "#f7f4ec",
+          background: "#ffffff",
         }}
       />
       <div
@@ -44,7 +45,7 @@ export function BrandMarkImage({ size }: { size: number }) {
           width: bottom * 2,
           height: bottom * 2,
           borderRadius: 999,
-          border: `${Math.max(1, 1.8 * k)}px solid #e8c97a`,
+          border: `${Math.max(1, 1.8 * k)}px solid #e8a317`,
           boxSizing: "border-box",
         }}
       />

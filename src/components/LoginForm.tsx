@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
@@ -21,6 +22,7 @@ export function LoginForm() {
     const next = requested.startsWith("/") && !requested.startsWith("//") ? requested : "/";
     try {
       const res = await signIn("credentials", {
+        mode: "admin",
         loginId,
         password,
         redirect: false,
@@ -38,14 +40,21 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-paper px-4">
-      <div className="w-full max-w-md overflow-hidden rounded-panel border border-line bg-card shadow-[0_18px_50px_rgba(12,35,64,0.12)]">
-        <div className="flex flex-col items-center bg-ink px-6 py-9 text-center text-paper">
+    <div className="relative flex min-h-screen items-center justify-center px-4 py-12">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(232,163,23,0.14),transparent_42%),radial-gradient(ellipse_at_90%_10%,rgba(26,86,219,0.12),transparent_40%)]"
+      />
+
+      <div className="relative w-full max-w-md overflow-hidden rounded-panel border border-line bg-card shadow-lift">
+        <div className="flex flex-col items-center px-6 pb-2 pt-9 text-center">
           <BrandMark size={56} />
-          <h1 className="mt-3 text-2xl font-bold tracking-tight">잉잉관리자</h1>
-          <p className="mt-1 text-sm text-paper/70">일정 · 근태 · 지점 관리</p>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">관리자 로그인</h1>
+          <p className="mt-1 text-sm text-muted">사장 · 지점장 · 최고관리자</p>
+          <div className="mt-5 h-1 w-16 rounded-full bg-gradient-to-r from-gold to-ink" aria-hidden />
         </div>
-        <form onSubmit={onSubmit} className="space-y-4 p-6">
+
+        <form onSubmit={onSubmit} className="space-y-4 px-6 pb-8 pt-5">
           <Field label="아이디">
             <TextInput
               value={loginId}
@@ -67,6 +76,12 @@ export function LoginForm() {
           <Button type="submit" disabled={loading} size="lg" className="w-full">
             {loading ? "로그인 중..." : "로그인"}
           </Button>
+          <p className="text-center text-sm text-muted">
+            직원이신가요?{" "}
+            <Link href="/login/staff" className="font-medium text-ink underline-offset-2 hover:underline">
+              직원 로그인
+            </Link>
+          </p>
         </form>
       </div>
     </div>

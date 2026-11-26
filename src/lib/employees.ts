@@ -1,4 +1,4 @@
-import { Prisma, Role } from "@prisma/client";
+import { PayBasis, Prisma, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
@@ -6,10 +6,19 @@ export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
 }
 
+/** Staff/part-time internal login id (not shown in UI). */
+export function staffLoginId(branchId: number, name: string) {
+  return `s:${branchId}:${name.trim()}`;
+}
+
+export function needsStaffLogin(role: Role) {
+  return role === Role.STAFF || role === Role.PARTTIME;
+}
+
 type CreateEmployeeInput = {
   name: string;
   role: Role;
-  loginId: string;
+  loginId?: string;
   password: string;
   phone?: string | null;
   ssn?: string | null;
@@ -22,6 +31,8 @@ type CreateEmployeeInput = {
   ownerBranchIds?: number[];
   monthlySalary?: number | null;
   insuranceType?: "FOUR_INSURANCE" | "THREE_POINT_THREE";
+  payBasis?: PayBasis | "MONTHLY" | "HOURLY";
+  workDaysPerWeek?: number;
   notes?: string | null;
   actorRole: Role;
   actorBranchIds: number[];
@@ -31,7 +42,7 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
   const {
     name,
     role,
-    loginId,
+    loginId: rawLoginId,
     password,
     phone,
     ssn,
@@ -44,15 +55,19 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
     ownerBranchIds = [],
     monthlySalary,
     insuranceType,
+    payBasis,
+    workDaysPerWeek = 5,
     notes,
     actorRole,
     actorBranchIds,
   } = input;
 
-  if (!name.trim() || !loginId.trim() || !password) {
-    throw new Error("이름, 아이디, 비밀번호는 필수입니다.");
+  const trimmedName = name.trim();
+  if (!trimmedName || !password) {
+    throw new Error("이름과 비밀번호는 필수입니다.");
   }
 
+  const weekDays = workDaysPerWeek === 6 ? 6 : 5;
   const unrestricted = actorRole === Role.SUPERADMIN;
 
   if (role === Role.SUPERADMIN && !unrestricted) {
@@ -75,7 +90,7 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
   }
 
   if (role === Role.SUPERADMIN) {
-    // 소속 지점 없이 전 지점을 본다.
+    // no branch
   } else if (role === Role.OWNER) {
     if (actorRole !== Role.OWNER && actorRole !== Role.SUPERADMIN) {
       throw new Error("사장은 사장 또는 최고관리자만 등록할 수 있습니다.");
@@ -92,17 +107,40 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
     throw new Error("배정된 지점만 선택할 수 있습니다.");
   }
 
+  const resolvedBranchId = role === Role.OWNER || role === Role.SUPERADMIN ? null : branchId!;
+
+  if (resolvedBranchId != null) {
+    const nameDup = await prisma.employee.findFirst({
+      where: { branchId: resolvedBranchId, name: trimmedName },
+    });
+    if (nameDup) throw new Error("같은 지점에 동일한 이름이 이미 있습니다.");
+  }
+
+  let loginId = String(rawLoginId ?? "").trim();
+  if (needsStaffLogin(role)) {
+    loginId = staffLoginId(resolvedBranchId!, trimmedName);
+  } else if (!loginId) {
+    throw new Error("로그인 아이디는 필수입니다.");
+  }
+
   const exists = await prisma.employee.findUnique({ where: { loginId } });
-  if (exists) throw new Error("이미 사용 중인 아이디입니다.");
+  if (exists) throw new Error(needsStaffLogin(role) ? "같은 지점에 동일한 이름이 이미 있습니다." : "이미 사용 중인 아이디입니다.");
+
+  const resolvedInsurance =
+    insuranceType ?? (role === Role.PARTTIME ? "THREE_POINT_THREE" : "FOUR_INSURANCE");
+  const payBasisRaw = String(payBasis ?? "");
+  let resolvedPayBasis: PayBasis = role === Role.PARTTIME ? PayBasis.HOURLY : PayBasis.MONTHLY;
+  if (payBasisRaw === "HOURLY") resolvedPayBasis = PayBasis.HOURLY;
+  if (payBasisRaw === "MONTHLY") resolvedPayBasis = PayBasis.MONTHLY;
 
   const passwordHash = await hashPassword(password);
 
   return prisma.$transaction(async (tx) => {
     const employee = await tx.employee.create({
       data: {
-        name: name.trim(),
+        name: trimmedName,
         role,
-        loginId: loginId.trim(),
+        loginId,
         passwordHash,
         phone: phone || null,
         ssn: ssn?.trim() || null,
@@ -111,11 +149,11 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
         bankName: bankName?.trim() || null,
         accountNumber: accountNumber?.trim() || null,
         accountHolder: accountHolder?.trim() || null,
-        branchId: role === Role.OWNER || role === Role.SUPERADMIN ? null : branchId!,
+        branchId: resolvedBranchId,
         monthlySalary: monthlySalary ?? null,
-        insuranceType:
-          insuranceType ??
-          (role === Role.PARTTIME ? "THREE_POINT_THREE" : "FOUR_INSURANCE"),
+        insuranceType: resolvedInsurance,
+        payBasis: resolvedPayBasis,
+        workDaysPerWeek: weekDays,
         notes: notes || null,
       },
     });

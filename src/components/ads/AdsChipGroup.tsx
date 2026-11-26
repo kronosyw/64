@@ -23,11 +23,7 @@ export function AdsChipGroup({
               type="button"
               aria-pressed={active}
               onClick={() => onChange(opt.id)}
-              className={`min-h-8 rounded-btn px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 ${
-                active
-                  ? "bg-ink text-paper"
-                  : "border border-line bg-card text-muted hover:border-ink/20 hover:text-ink"
-              }`}
+              className={`desk-chip text-xs ${active ? "desk-chip-active" : "border border-line bg-card desk-chip-idle"}`}
             >
               {opt.label}
             </button>

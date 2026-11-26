@@ -8,8 +8,17 @@ export function categoryLabel(category: string | null | undefined) {
   return "4대보험";
 }
 
-export function payRateLabel(insuranceType: string | null | undefined) {
+export function payRateLabel(
+  insuranceType: string | null | undefined,
+  payBasis?: string | null,
+) {
+  if (payBasis === "HOURLY") return "시급";
+  if (payBasis === "MONTHLY") return "월급";
   return insuranceType === "THREE_POINT_THREE" ? "시급" : "월급";
+}
+
+export function payBasisLabel(payBasis: string | null | undefined) {
+  return payBasis === "HOURLY" ? "시급" : "월급";
 }
 
 export function toDateInput(value: string | Date | null | undefined) {

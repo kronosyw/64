@@ -25,6 +25,11 @@ enum InsuranceType {
   THREE_POINT_THREE
 }
 
+enum PayBasis {
+  MONTHLY
+  HOURLY
+}
+
 enum WorkType {
   OPEN
   CLOSE
@@ -124,6 +129,8 @@ model Employee {
   accountHolder    String?          @map("account_holder")
   monthlySalary    Int?             @map("monthly_salary")
   insuranceType    InsuranceType    @default(FOUR_INSURANCE) @map("insurance_type")
+  payBasis         PayBasis         @default(MONTHLY) @map("pay_basis")
+  workDaysPerWeek  Int              @default(5) @map("work_days_per_week")
   status           EmploymentStatus @default(ACTIVE)
   notes            String?
   branchId         Int?             @map("branch_id")
@@ -137,6 +144,7 @@ model Employee {
   payrollItems      PayrollItem[]
   boardPosts        BoardPost[]
 
+  @@unique([branchId, name])
   @@index([branchId])
   @@index([role, status])
   @@map("employees")

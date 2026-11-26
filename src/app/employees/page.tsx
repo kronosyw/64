@@ -13,6 +13,7 @@ import {
   TextSelect,
 } from "@/components/ui";
 import { healthCertTone, insuranceLabel, payRateLabel, toDateInput } from "@/lib/hr";
+import { canManageEmployeeAccount, isOwnerOrBelow } from "@/lib/roles";
 
 type Branch = { id: number; name: string };
 type Employee = {
@@ -31,6 +32,8 @@ type Employee = {
   accountHolder: string | null;
   monthlySalary: number | null;
   insuranceType: "FOUR_INSURANCE" | "THREE_POINT_THREE";
+  payBasis: "MONTHLY" | "HOURLY";
+  workDaysPerWeek: number;
   notes: string | null;
   branch?: { id: number; name: string } | null;
   ownerBranches?: { branch: Branch }[];
@@ -52,9 +55,15 @@ type FormState = {
   accountHolder: string;
   monthlySalary: string;
   insuranceType: "FOUR_INSURANCE" | "THREE_POINT_THREE";
+  payBasis: "MONTHLY" | "HOURLY";
+  workDaysPerWeek: "5" | "6";
   notes: string;
   status: string;
 };
+
+function isStaffLike(role: string) {
+  return role === "STAFF" || role === "PARTTIME";
+}
 
 const emptyForm = (branchId = ""): FormState => ({
   name: "",
@@ -72,6 +81,8 @@ const emptyForm = (branchId = ""): FormState => ({
   accountHolder: "",
   monthlySalary: "",
   insuranceType: "FOUR_INSURANCE",
+  payBasis: "MONTHLY",
+  workDaysPerWeek: "5",
   notes: "",
   status: "ACTIVE",
 });
@@ -93,6 +104,8 @@ function fromEmployee(e: Employee): FormState {
     accountHolder: e.accountHolder ?? "",
     monthlySalary: e.monthlySalary != null ? String(e.monthlySalary) : "",
     insuranceType: e.insuranceType,
+    payBasis: e.payBasis === "HOURLY" ? "HOURLY" : "MONTHLY",
+    workDaysPerWeek: e.workDaysPerWeek === 6 ? "6" : "5",
     notes: e.notes ?? "",
     status: e.status,
   };
@@ -107,6 +120,7 @@ function HrFields({
   setForm: (next: FormState) => void;
   showStatus?: boolean;
 }) {
+  const rateLabel = payRateLabel(form.insuranceType, form.payBasis);
   return (
     <div className="space-y-3">
       <div className="grid gap-2 sm:grid-cols-2">
@@ -120,26 +134,75 @@ function HrFields({
         <Field label="근무형태 (급여)">
           <TextSelect
             value={form.insuranceType}
-            onChange={(e) =>
+            onChange={(e) => {
+              const insuranceType = e.target.value as FormState["insuranceType"];
               setForm({
                 ...form,
-                insuranceType: e.target.value as FormState["insuranceType"],
-              })
-            }
+                insuranceType,
+                payBasis:
+                  insuranceType === "FOUR_INSURANCE"
+                    ? "MONTHLY"
+                    : form.payBasis,
+              });
+            }}
           >
             <option value="FOUR_INSURANCE">4대보험</option>
             <option value="THREE_POINT_THREE">3.3%</option>
           </TextSelect>
         </Field>
-        <Field label={payRateLabel(form.insuranceType)}>
+
+        {form.insuranceType === "THREE_POINT_THREE" ? (
+          <Field label="급여 입력">
+            <div className="flex gap-1">
+              {(
+                [
+                  ["MONTHLY", "월급"],
+                  ["HOURLY", "시급"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`desk-chip flex-1 ${form.payBasis === id ? "desk-chip-active" : "border border-line desk-chip-idle"}`}
+                  onClick={() => setForm({ ...form, payBasis: id })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </Field>
+        ) : null}
+
+        <Field label={rateLabel}>
           <TextInput
             type="number"
             inputMode="numeric"
-            placeholder={form.insuranceType === "THREE_POINT_THREE" ? "시급 (원)" : "월급 (원)"}
+            placeholder={`${rateLabel} (원)`}
             value={form.monthlySalary}
             onChange={(e) => setForm({ ...form, monthlySalary: e.target.value })}
           />
         </Field>
+
+        <Field label="주 근무일">
+          <div className="flex gap-1">
+            {(
+              [
+                ["5", "주 5일"],
+                ["6", "주 6일"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`desk-chip flex-1 ${form.workDaysPerWeek === id ? "desk-chip-active" : "border border-line desk-chip-idle"}`}
+                onClick={() => setForm({ ...form, workDaysPerWeek: id })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
         <Field label="입사일">
           <TextInput
             type="date"
@@ -164,7 +227,7 @@ function HrFields({
       </div>
 
       <div className="rounded-btn border border-line bg-paper/40 p-3">
-        <p className="mb-2 text-sm font-medium text-ink">은행계좌 (급여이체·대장)</p>
+        <p className="mb-2 text-sm font-medium text-foreground">은행계좌 (급여이체·대장)</p>
         <div className="grid gap-2 sm:grid-cols-3">
           <TextInput
             placeholder="은행명"
@@ -185,10 +248,10 @@ function HrFields({
       </div>
 
       {showStatus ? (
-        <Field label="근무 상태">
+        <Field label="상태">
           <TextSelect value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option value="ACTIVE">근무</option>
-            <option value="RESIGNED">퇴사</option>
+            <option value="ACTIVE">활성</option>
+            <option value="RESIGNED">비활성</option>
           </TextSelect>
         </Field>
       ) : null}
@@ -261,6 +324,8 @@ export default function EmployeesPage() {
         branchId: form.role === "OWNER" || form.role === "SUPERADMIN" ? null : Number(form.branchId),
         ownerBranchIds: form.role === "OWNER" ? form.ownerBranchIds : [],
         monthlySalary: form.monthlySalary,
+        workDaysPerWeek: Number(form.workDaysPerWeek),
+        payBasis: form.insuranceType === "FOUR_INSURANCE" ? "MONTHLY" : form.payBasis,
       }),
     });
     const data = await res.json();
@@ -298,6 +363,10 @@ export default function EmployeesPage() {
         accountHolder: editForm.accountHolder,
         monthlySalary: editForm.monthlySalary,
         insuranceType: editForm.insuranceType,
+        payBasis:
+          editForm.insuranceType === "FOUR_INSURANCE" ? "MONTHLY" : editForm.payBasis,
+        workDaysPerWeek: Number(editForm.workDaysPerWeek),
+        password: editForm.password || undefined,
         notes: editForm.notes,
         status: editForm.status,
         branchId:
@@ -319,11 +388,32 @@ export default function EmployeesPage() {
     load();
   }
 
+  async function setStatus(employee: Employee, status: "ACTIVE" | "RESIGNED") {
+    const label = status === "ACTIVE" ? "활성" : "비활성";
+    if (!confirm(`${employee.name} 계정을 ${label} 처리할까요?`)) return;
+    const res = await fetch("/api/employees", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: employee.id, status }),
+    });
+    const data = await res.json();
+    setMessage(data.success ? `${employee.name}을(를) ${label} 처리했습니다.` : data.message || "실패");
+    if (data.success) load();
+  }
+
+  async function removeEmployee(employee: Employee) {
+    if (!confirm(`${employee.name} 계정을 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) return;
+    const res = await fetch(`/api/employees?id=${employee.id}`, { method: "DELETE" });
+    const data = await res.json();
+    setMessage(data.success ? `${employee.name}을(를) 삭제했습니다.` : data.message || "삭제 실패");
+    if (data.success) load();
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="직원 관리"
-        description="보건증·계좌·주민번호·근무형태는 급여명세서와 세무사 급여대장에 반영됩니다."
+        description="직원·파트는 지점+이름+비밀번호로 로그인합니다. 같은 지점 내 이름은 중복될 수 없습니다."
         actions={
           <Button type="button" onClick={openCreate}>
             등록
@@ -335,12 +425,13 @@ export default function EmployeesPage() {
 
       <TableShell>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full min-w-[920px] text-sm">
             <thead className="bg-paper text-left text-muted">
               <tr>
                 <th className="px-3 py-2">이름</th>
                 <th className="px-3 py-2">등급</th>
                 <th className="px-3 py-2">근무형태</th>
+                <th className="px-3 py-2">주근무</th>
                 <th className="px-3 py-2">보건증</th>
                 <th className="px-3 py-2">계좌</th>
                 <th className="px-3 py-2">지점</th>
@@ -353,16 +444,26 @@ export default function EmployeesPage() {
                 const certTone = healthCertTone(e.healthCertExpire);
                 return (
                   <tr key={e.id} className="border-t border-line">
-                    <td className="px-3 py-2 font-medium text-ink">{e.name}</td>
+                    <td className="px-3 py-2 font-medium text-foreground">{e.name}</td>
                     <td className="px-3 py-2">{e.roleLabel}</td>
                     <td className="px-3 py-2">
                       {e.role === "SUPERADMIN" || e.role === "OWNER" ? (
                         "-"
                       ) : (
-                        <Badge tone={e.insuranceType === "THREE_POINT_THREE" ? "gold" : "ink"}>
-                          {insuranceLabel(e.insuranceType)}
-                        </Badge>
+                        <span className="inline-flex flex-wrap gap-1">
+                          <Badge tone={e.insuranceType === "THREE_POINT_THREE" ? "gold" : "ink"}>
+                            {insuranceLabel(e.insuranceType)}
+                          </Badge>
+                          {e.insuranceType === "THREE_POINT_THREE" ? (
+                            <Badge tone="muted">{e.payBasis === "HOURLY" ? "시급" : "월급"}</Badge>
+                          ) : null}
+                        </span>
                       )}
+                    </td>
+                    <td className="px-3 py-2">
+                      {e.role === "SUPERADMIN" || e.role === "OWNER"
+                        ? "-"
+                        : `주 ${e.workDaysPerWeek ?? 5}일`}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">
                       {e.healthCertExpire ? (
@@ -387,11 +488,47 @@ export default function EmployeesPage() {
                           ? e.ownerBranches?.map((ob) => ob.branch.name).join(", ")
                           : e.branch?.name}
                     </td>
-                    <td className="px-3 py-2">{e.status === "ACTIVE" ? "근무" : "퇴사"}</td>
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-2">
+                      <Badge tone={e.status === "ACTIVE" ? "ink" : "muted"}>
+                        {e.status === "ACTIVE" ? "활성" : "비활성"}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
                       <Button type="button" variant="link" size="sm" onClick={() => openEdit(e)}>
                         수정
                       </Button>
+                      {isOwnerOrBelow(e.role) && canManageEmployeeAccount(actorRole, e.role) ? (
+                        <>
+                          {e.status === "ACTIVE" ? (
+                            <Button
+                              type="button"
+                              variant="link"
+                              size="sm"
+                              onClick={() => setStatus(e, "RESIGNED")}
+                            >
+                              비활성
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="link"
+                              size="sm"
+                              onClick={() => setStatus(e, "ACTIVE")}
+                            >
+                              활성
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="link"
+                            size="sm"
+                            className="text-danger"
+                            onClick={() => removeEmployee(e)}
+                          >
+                            삭제
+                          </Button>
+                        </>
+                      ) : null}
                     </td>
                   </tr>
                 );
@@ -434,6 +571,7 @@ export default function EmployeesPage() {
                       ...form,
                       role,
                       insuranceType: role === "PARTTIME" ? "THREE_POINT_THREE" : form.insuranceType,
+                      payBasis: role === "PARTTIME" ? "HOURLY" : form.payBasis,
                     });
                   }}
                 >
@@ -444,13 +582,20 @@ export default function EmployeesPage() {
                   <option value="PARTTIME">파트타임</option>
                 </TextSelect>
               </Field>
-              <Field label="로그인 아이디">
-                <TextInput
-                  value={form.loginId}
-                  onChange={(e) => setForm({ ...form, loginId: e.target.value })}
-                  required
-                />
-              </Field>
+              {!isStaffLike(form.role) ? (
+                <Field label="로그인 아이디">
+                  <TextInput
+                    value={form.loginId}
+                    onChange={(e) => setForm({ ...form, loginId: e.target.value })}
+                    required
+                  />
+                </Field>
+              ) : (
+                <p className="sm:col-span-2 rounded-btn border border-line bg-paper/60 px-3 py-2 text-sm text-muted">
+                  직원·파트는 아이디 없이 <strong className="text-foreground">지점 + 이름 + 비밀번호</strong>로
+                  로그인합니다. 같은 지점에 같은 이름은 등록할 수 없습니다.
+                </p>
+              )}
               <Field label="초기 비밀번호">
                 <TextInput
                   type="password"
@@ -466,7 +611,7 @@ export default function EmployeesPage() {
             ) : form.role === "OWNER" ? (
               <div className="flex flex-wrap gap-2">
                 {branches.map((b) => (
-                  <label key={b.id} className="flex items-center gap-1 text-sm text-ink">
+                  <label key={b.id} className="flex items-center gap-1 text-sm text-foreground">
                     <input
                       type="checkbox"
                       checked={form.ownerBranchIds.includes(b.id)}
@@ -521,13 +666,30 @@ export default function EmployeesPage() {
               />
             </Field>
             <p className="text-sm text-muted">
-              아이디 <span className="font-mono text-ink">{editing.loginId}</span> · {editing.roleLabel}
+              {isStaffLike(editing.role) ? (
+                <>직원 로그인: 지점 + 이름 + 비밀번호 · {editing.roleLabel}</>
+              ) : (
+                <>
+                  아이디 <span className="font-mono text-ink">{editing.loginId}</span> · {editing.roleLabel}
+                </>
+              )}
             </p>
+
+            {isStaffLike(editing.role) ? (
+              <Field label="비밀번호 변경 (선택)">
+                <TextInput
+                  type="password"
+                  value={editForm.password}
+                  onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                  placeholder="바꾸려면 입력"
+                />
+              </Field>
+            ) : null}
 
             {editing.role === "OWNER" ? (
               <div className="flex flex-wrap gap-2">
                 {branches.map((b) => (
-                  <label key={b.id} className="flex items-center gap-1 text-sm text-ink">
+                  <label key={b.id} className="flex items-center gap-1 text-sm text-foreground">
                     <input
                       type="checkbox"
                       checked={editForm.ownerBranchIds.includes(b.id)}
@@ -555,13 +717,13 @@ export default function EmployeesPage() {
             {editing.role !== "SUPERADMIN" && editing.role !== "OWNER" ? (
               <HrFields form={editForm} setForm={setEditForm} showStatus />
             ) : (
-              <Field label="근무 상태">
+              <Field label="상태">
                 <TextSelect
                   value={editForm.status}
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                 >
-                  <option value="ACTIVE">근무</option>
-                  <option value="RESIGNED">퇴사</option>
+                  <option value="ACTIVE">활성</option>
+                  <option value="RESIGNED">비활성</option>
                 </TextSelect>
               </Field>
             )}

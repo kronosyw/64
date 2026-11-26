@@ -21,9 +21,9 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-line pb-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">{title}</h1>
-        {description ? <p className="mt-1 text-sm text-muted">{description}</p> : null}
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-tight text-balance text-foreground">{title}</h1>
+        {description ? <p className="mt-1 max-w-2xl text-sm text-muted">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
@@ -44,11 +44,11 @@ export function Panel({
   actions?: ReactNode;
 }) {
   return (
-    <section className="rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+    <section className="desk-panel overflow-hidden">
       {title || actions ? (
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-3">
-          <div>
-            {title ? <h2 className="font-semibold text-ink">{title}</h2> : null}
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line bg-paper/50 px-4 py-3">
+          <div className="min-w-0">
+            {title ? <h2 className="font-semibold text-foreground">{title}</h2> : null}
             {description ? <p className="mt-0.5 text-sm text-muted">{description}</p> : null}
           </div>
           {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -63,12 +63,11 @@ type ButtonVariant = "primary" | "ghost" | "danger" | "soft" | "gold" | "link";
 type ButtonSize = "sm" | "md" | "lg";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary:
-    "bg-ink text-paper shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)] hover:bg-[#16345a] active:bg-[#081628]",
-  ghost: "border border-line bg-card text-ink hover:border-ink/25 hover:bg-paper active:bg-line/40",
-  danger: "border border-danger/20 bg-danger/5 text-danger hover:bg-danger/10 active:bg-danger/15",
-  soft: "bg-paper text-ink hover:bg-line/60 active:bg-line",
-  gold: "bg-gold text-ink hover:bg-[#d0b06a] active:bg-[#b8924a]",
+  primary: "bg-ink text-white shadow-sm hover:bg-ink-soft active:bg-ink-deep",
+  ghost: "border border-line bg-card text-foreground hover:border-ink/30 hover:bg-paper active:bg-line/50",
+  danger: "border border-danger/25 bg-danger/5 text-danger hover:bg-danger/10 active:bg-danger/15",
+  soft: "bg-paper text-foreground hover:bg-line/70 active:bg-line",
+  gold: "bg-gold text-foreground hover:bg-gold-soft active:bg-[#d49410]",
   link: "bg-transparent px-1.5 py-1 text-ink underline-offset-4 hover:underline",
 };
 
@@ -89,7 +88,7 @@ export function buttonClass({
 } = {}) {
   return cx(
     "inline-flex items-center justify-center gap-1.5 rounded-btn font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-paper",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/80 focus-visible:ring-offset-2 focus-visible:ring-offset-paper",
     "disabled:pointer-events-none disabled:opacity-50",
     "active:translate-y-px",
     variant !== "link" && buttonSizes[size],
@@ -139,7 +138,7 @@ export function Field({
   hint?: string;
 }) {
   return (
-    <label className={cx("block text-sm text-ink", className)}>
+    <label className={cx("block text-sm text-foreground", className)}>
       {label ? <span className="mb-1.5 block text-[13px] font-medium text-muted">{label}</span> : null}
       {children}
       {hint ? <span className="mt-1 block text-xs text-muted">{hint}</span> : null}
@@ -148,7 +147,7 @@ export function Field({
 }
 
 const controlClass =
-  "w-full rounded-btn border border-line bg-card px-3 py-2 text-sm text-ink shadow-[inset_0_1px_0_rgba(12,35,64,0.02)] outline-none transition-[border-color,box-shadow] placeholder:text-muted/70 focus:border-ink/40 focus:ring-2 focus:ring-gold/35 disabled:cursor-not-allowed disabled:bg-paper disabled:opacity-60";
+  "w-full rounded-btn border border-line bg-card px-3 py-2 text-sm text-foreground shadow-inset-paper outline-none transition-[border-color,box-shadow] placeholder:text-muted/70 focus:border-ink/45 focus:ring-2 focus:ring-ink/20 disabled:cursor-not-allowed disabled:bg-paper disabled:opacity-60";
 
 export function TextInput({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cx(controlClass, className)} />;
@@ -170,15 +169,11 @@ export function CheckLabel({
   return (
     <label
       className={cx(
-        "inline-flex cursor-pointer items-center gap-2 rounded-btn border border-line bg-card px-3 py-2 text-sm text-ink transition-colors hover:bg-paper has-[:checked]:border-ink/30 has-[:checked]:bg-paper",
+        "inline-flex cursor-pointer items-center gap-2 rounded-btn border border-line bg-card px-3 py-2 text-sm text-foreground transition-colors hover:bg-paper has-[:checked]:border-ink/35 has-[:checked]:bg-paper",
         className,
       )}
     >
-      <input
-        {...props}
-        type="checkbox"
-        className="h-4 w-4 accent-ink"
-      />
+      <input {...props} type="checkbox" className="h-4 w-4 accent-ink" />
       <span>{children}</span>
     </label>
   );
@@ -194,7 +189,7 @@ export function Tabs({
   onChange: (id: string | number) => void;
 }) {
   return (
-    <div className="-mx-1 flex gap-1 overflow-x-auto rounded-panel border border-line bg-card p-1">
+    <div className="desk-toolbar -mx-1 overflow-x-auto">
       {items.map((item) => {
         const active = item.id === value;
         return (
@@ -202,12 +197,7 @@ export function Tabs({
             key={String(item.id)}
             type="button"
             onClick={() => onChange(item.id)}
-            className={cx(
-              "shrink-0 rounded-btn px-3.5 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
-              active
-                ? "bg-ink font-medium text-paper shadow-sm"
-                : "text-muted hover:bg-paper hover:text-ink",
-            )}
+            className={cx("desk-chip shrink-0", active ? "desk-chip-active" : "desk-chip-idle")}
           >
             {item.label}
           </button>
@@ -222,13 +212,14 @@ export function Badge({
   tone = "muted",
 }: {
   children: ReactNode;
-  tone?: "muted" | "gold" | "ink" | "danger";
+  tone?: "muted" | "gold" | "ink" | "danger" | "success";
 }) {
   const tones = {
     muted: "bg-paper text-muted",
-    gold: "bg-gold/20 text-ink",
+    gold: "bg-gold/25 text-foreground",
     ink: "bg-ink/10 text-ink",
     danger: "bg-danger/10 text-danger",
+    success: "bg-success/10 text-success",
   };
   return (
     <span className={cx("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", tones[tone])}>
@@ -249,21 +240,23 @@ export function Modal({
   footer?: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/45 p-0 backdrop-blur-[2px] md:items-center md:p-6">
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-foreground/35 p-0 backdrop-blur-[3px] md:items-center md:p-6">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[1.25rem] border border-line bg-card shadow-[0_18px_50px_rgba(12,35,64,0.28)] md:rounded-panel"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[1.25rem] border border-line bg-card shadow-lift md:rounded-panel"
       >
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-card/95 px-4 py-3 backdrop-blur">
-          <h2 className="text-lg font-semibold text-ink">{title}</h2>
+          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           <Button type="button" variant="link" size="sm" onClick={onClose} className="text-muted">
             닫기
           </Button>
         </div>
         <div className="space-y-3 p-4">{children}</div>
-        {footer ? <div className="sticky bottom-0 flex gap-2 border-t border-line bg-card/95 p-4 backdrop-blur">{footer}</div> : null}
+        {footer ? (
+          <div className="sticky bottom-0 flex gap-2 border-t border-line bg-card/95 p-4 backdrop-blur">{footer}</div>
+        ) : null}
       </div>
     </div>
   );
@@ -271,7 +264,7 @@ export function Modal({
 
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-panel border border-dashed border-line bg-card/70 px-6 py-10 text-center text-sm text-muted">
+    <div className="rounded-panel border border-dashed border-line bg-card px-6 py-12 text-center text-sm text-muted shadow-desk">
       {children}
     </div>
   );
@@ -281,15 +274,40 @@ export function Message({ children, tone = "muted" }: { children: ReactNode; ton
   const tones = {
     muted: "border-line bg-card text-muted",
     danger: "border-danger/25 bg-danger/5 text-danger",
-    ok: "border-ink/15 bg-ink/5 text-ink",
+    ok: "border-ink/20 bg-ink/5 text-ink",
   };
   return <p className={cx("rounded-btn border px-3 py-2 text-sm", tones[tone])}>{children}</p>;
 }
 
 export function TableShell({ children }: { children: ReactNode }) {
+  return <div className="desk-panel overflow-hidden">{children}</div>;
+}
+
+export function StatGrid({
+  items,
+  columns = 4,
+}: {
+  items: Array<{ label: string; value: ReactNode; hint?: string }>;
+  columns?: 3 | 4 | 5;
+}) {
+  const grid =
+    columns === 5
+      ? "grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
+      : columns === 3
+        ? "grid gap-2 sm:grid-cols-3"
+        : "grid gap-2 sm:grid-cols-2 lg:grid-cols-4";
   return (
-    <div className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
-      {children}
+    <div className={grid}>
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className="rounded-btn border border-line bg-gradient-to-br from-card to-paper px-3.5 py-3 shadow-desk"
+        >
+          <p className="text-[11px] font-medium text-muted">{item.label}</p>
+          <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-foreground">{item.value}</p>
+          {item.hint ? <p className="mt-0.5 text-[11px] text-muted">{item.hint}</p> : null}
+        </div>
+      ))}
     </div>
   );
 }

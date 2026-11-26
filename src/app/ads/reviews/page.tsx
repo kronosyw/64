@@ -241,7 +241,7 @@ export default function AdsReviewsPage() {
 
   return (
     <div className="space-y-4">
-      <section className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+      <section className="desk-panel overflow-hidden">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-4">
           <div>
             <div className="flex items-center gap-2">
@@ -362,12 +362,9 @@ export default function AdsReviewsPage() {
 
       {[...byPlatform.entries()].map(([platformId, list]) => {
         const platform = platforms.find((p) => p.id === platformId) || list[0]?.platform;
-        const accent = platform?.colorCode || "#0c2340";
+        const accent = platform?.colorCode || "#1a56db";
         return (
-          <section
-            key={platformId}
-            className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]"
-          >
+          <section key={platformId} className="desk-panel overflow-hidden">
             <div className="flex items-center gap-2 border-b border-line px-4 py-3">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: accent }} />
               <h2 className="font-semibold text-ink">{platform?.name || `플랫폼 ${platformId}`}</h2>

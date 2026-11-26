@@ -1,61 +1,83 @@
 # 잉잉관리자 디자인 가이드
 
-컨셉은 **마감 데스크**입니다. 매장 문을 닫고 장부를 펼친 자리처럼, 작업면은 따뜻한 종이색이고 글자와 버튼은 로고의 남색 잉크입니다. 금색은 마크와 공지·오늘 표시에만 씁니다.
+컨셉은 **선명한 화이트보드 오피스**입니다.  
+배경은 거의 화이트, 사이드바·패널은 흰 카드 톤. 브랜드 블루와 골드는 **강조·선택·CTA·활성 표시**에만 씁니다.  
+화면 전체를 남색으로 칠하지 않습니다.
+
+## 구현 스택: Tailwind CSS 4
+
+| 역할 | 위치 |
+|------|------|
+| 토큰·테마 | `src/app/globals.css` `@theme` |
+| 패턴 | `@layer components` (`desk-*`, `app-sidebar`, `nav-side*`) |
+| 공통 조각 | `src/components/ui.tsx` |
+| 앱 셸 | `src/components/AppShell.tsx` |
+
+규칙:
+
+1. hex는 페이지에 직접 쓰지 말고 토큰 클래스를 쓴다. (차트·브랜드 마크 SVG 예외)
+2. 내비는 **밝은 좌측 사이드바** — 어두운 풀폭 헤더/남색 벽 금지.
+3. primary 버튼은 `bg-ink text-white`, 본문 글자는 `text-foreground`.
+4. 포커스 링은 `ring-gold`.
+
+### 치트시트
+
+```
+배경     bg-paper  bg-card
+글자     text-foreground  text-muted  text-white(on primary)
+테두리   border-line
+액센트   bg-ink  bg-gold  text-ink  text-gold
+칩       desk-chip / desk-chip-active
+패널     desk-panel
+내비     nav-side / nav-side-active / nav-side-idle
+셸       app-sidebar  app-topbar
+```
+
+---
 
 ## 색
 
 | 이름 | Hex | 용도 |
 |------|-----|------|
-| ink | `#0c2340` | 글자, 헤더, 주요 버튼 |
-| paper | `#f6f1e7` | 앱 배경 |
-| card | `#fffdf8` | 카드·패널·표 |
-| line | `#e4dccb` | 테두리·구분선 |
-| muted | `#6b6558` | 부가 설명 |
-| gold | `#c4a15a` | 마크 강조, 공지, 활성 밑줄 |
-| danger | `#9f2d2d` | 오류·삭제 |
+| paper | `#f5f8fc` | 앱 배경 (거의 화이트) |
+| card | `#ffffff` | 사이드바·카드·모달 |
+| ink | `#1a56db` | 선명한 블루, CTA, 활성 |
+| ink-soft | `#2b6cf0` | hover |
+| ink-deep | `#1347b8` | pressed |
+| line | `#e2e8f2` | 테두리 |
+| muted | `#64748b` | 부가 텍스트 |
+| gold | `#e8a317` | 마크·활성 좌측 바 |
+| foreground | `#0f172a` | 본문 (잉크와 분리) |
+| danger | `#d14343` | 오류·삭제 |
+| success | `#0f9f6e` | 성공·증가 |
 
-Tailwind에서는 `bg-ink`, `text-paper`, `border-line`처럼 씁니다.
+---
 
-## 글자
+## 레이아웃 · 내비
 
-- 본문·제목: Pretendard
-- 시간·숫자·코드: 고정폭 (`font-mono`)
-- 페이지 제목: `text-2xl font-bold text-ink`
-- 부가 설명: `text-sm text-muted`, 한 줄
-- 버튼·라벨: sentence case, 한국어 그대로
+### Desktop (`md+`)
 
-## 배치
+- 고정 좌측 사이드바(~240px, `bg-card` + `border-line`)
+- 상단: BrandMark · 제품명
+- 중앙: 세로 메뉴 (`nav-side`, 활성 = ink 배경 + 좌측 gold 바)
+- 하단: 사용자 · 역할 · 로그아웃
+- 우측 메인만 스크롤, ads는 `max-w-[1400px]`
 
-- 내용은 왼쪽 정렬
-- 헤더: 남색(`ink`) 띠, 메뉴는 한 줄 가로 스크롤
-- 본문: 종이 배경 위 카드
-- 모서리: 버튼·입력 `rounded-btn`(8px), 카드 `rounded-panel`(16px)
-- 최대 폭: `max-w-6xl`
+### Mobile (`md` 미만)
 
-## 상태
+- sticky 탑바: 로고 · 제품명 · 햄버거
+- 오버레이 드로어(동일 메뉴·유저·로그아웃)
+- 열림 시 body scroll lock, Esc/백드롭/링크 클릭으로 닫기
 
-- 공지·오늘: 금색 또는 남색 원
-- 오류: `text-danger` 한 문장
-- 빈 화면: 다음에 할 행동을 한 줄로 (“글쓰기” 등)
-- 근무 칩: 지점별 근무형태 색을 그대로 사용
+## 로그인
+
+- 밝은 배경 + 흰 카드
+- 마크·타이틀이 카드 안 브랜드 신호
+- CTA는 full-width primary
 
 ## 하지 않을 것
 
-- 파란 그라데이션, `blue-700` / `slate-50` 일회성 팔레트
-- 페이지마다 다른 버튼 색
-- 장식용 다중 그림자
-- 다크 모드 자동 전환
-- 장식용 ALL-CAPS 라벨, 중점(·)으로 이어 붙인 메타 나열의 남용
-
-## 공통 조각
-
-`src/components/ui.tsx` — Tailwind 유틸로 구성. 새 화면은 여기 조각을 먼저 쓴다.
-
-- `PageHeader` — 제목 + 한 줄 설명 + 우측 액션
-- `Panel` — 카드 컨테이너 (선택적 title/actions)
-- `Button` / `ButtonLink` — primary · ghost · danger · soft · gold · link, 크기 sm/md/lg
-- `Field` · `TextInput` · `TextSelect` · `TextTextarea` · `CheckLabel`
-- `Tabs` — 지점·필터 탭
-- `Badge` · `Modal` · `Message` · `EmptyState` · `TableShell`
-
-버튼은 포커스에 금색 링, 눌림에 아주 얕은 이동만 쓴다. 페이지마다 임의 `bg-blue-*` 버튼을 만들지 않는다.
+- 화면 전체를 어두운 남색으로 덮기
+- 탁한 베이지 페이퍼로 우중충하게 만들기
+- 상단 가로 필 메뉴를 다시 쓰기
+- 보라 그라데이션 / 크림+테라코타 / 다크모드 기본값

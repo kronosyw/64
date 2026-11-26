@@ -25,7 +25,7 @@ SKADI PHP(`/64`)와 분리된 Next.js 관리 앱입니다.
 | DB | PostgreSQL (Neon / Prisma Postgres) |
 | ORM | Prisma 6 |
 | 인증 | Auth.js (next-auth v5) Credentials + bcrypt |
-| UI | Tailwind CSS 4 |
+| UI | Tailwind CSS 4 (`@theme` 토큰 + `ui.tsx` 공통 조각). 상세는 `docs/DESIGN.md` |
 
 SKADI `members` 로그인·MySQL(`employees`, `64_branches` 등)과 **연결하지 않습니다.**
 

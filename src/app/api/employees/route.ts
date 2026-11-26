@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
-import { EmploymentStatus, InsuranceType, Role } from "@prisma/client";
+import { EmploymentStatus, InsuranceType, PayBasis, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk, requireApiOps } from "@/lib/api";
-import { createEmployeeAccount, employeeListWhere } from "@/lib/employees";
+import { createEmployeeAccount, employeeListWhere, needsStaffLogin, staffLoginId } from "@/lib/employees";
 import { parseOptionalDate } from "@/lib/hr";
-import { roleLabel } from "@/lib/roles";
+import { canManageEmployeeAccount, roleLabel } from "@/lib/roles";
 
 export async function GET(req: NextRequest) {
   try {
@@ -62,6 +62,14 @@ export async function POST(req: NextRequest) {
           ? InsuranceType.FOUR_INSURANCE
           : undefined;
 
+    const payBasis =
+      body.payBasis === PayBasis.HOURLY || body.payBasis === "HOURLY"
+        ? PayBasis.HOURLY
+        : body.payBasis === PayBasis.MONTHLY || body.payBasis === "MONTHLY"
+          ? PayBasis.MONTHLY
+          : undefined;
+    const workDaysPerWeek = Number(body.workDaysPerWeek) === 6 ? 6 : 5;
+
     const employee = await createEmployeeAccount({
       name: String(body.name ?? ""),
       role,
@@ -80,6 +88,8 @@ export async function POST(req: NextRequest) {
         : [],
       monthlySalary: body.monthlySalary !== undefined && body.monthlySalary !== "" ? Number(body.monthlySalary) : null,
       insuranceType,
+      payBasis,
+      workDaysPerWeek,
       notes: body.notes,
       actorRole: session.user.role,
       actorBranchIds: session.user.branchIds,
@@ -105,7 +115,7 @@ export async function PATCH(req: NextRequest) {
     });
     if (!target) return jsonError("직원을 찾을 수 없습니다.", 404);
 
-    if (target.role === Role.SUPERADMIN && session.user.role !== Role.SUPERADMIN) {
+    if (!canManageEmployeeAccount(session.user.role, target.role)) {
       return jsonError("권한이 없습니다.", 403);
     }
 
@@ -113,8 +123,23 @@ export async function PATCH(req: NextRequest) {
       if (!target.branchId || !session.user.branchIds.includes(target.branchId)) {
         return jsonError("권한이 없습니다.", 403);
       }
-      if (target.role === Role.OWNER || target.role === Role.MANAGER || target.role === Role.SUPERADMIN) {
+    }
+
+    if (session.user.role === Role.OWNER && target.role !== Role.OWNER) {
+      if (!target.branchId || !session.user.branchIds.includes(target.branchId)) {
         return jsonError("권한이 없습니다.", 403);
+      }
+    }
+
+    if (session.user.role === Role.OWNER && target.role === Role.OWNER) {
+      if (String(target.id) !== session.user.id) {
+        const shared = await prisma.employeeBranch.findFirst({
+          where: {
+            employeeId: target.id,
+            branchId: { in: session.user.branchIds },
+          },
+        });
+        if (!shared) return jsonError("권한이 없습니다.", 403);
       }
     }
 
@@ -144,6 +169,15 @@ export async function PATCH(req: NextRequest) {
       }
       data.insuranceType = body.insuranceType;
     }
+    if (body.payBasis !== undefined) {
+      if (body.payBasis !== PayBasis.MONTHLY && body.payBasis !== PayBasis.HOURLY && body.payBasis !== "MONTHLY" && body.payBasis !== "HOURLY") {
+        return jsonError("급여 입력 방식이 올바르지 않습니다.");
+      }
+      data.payBasis = body.payBasis === "HOURLY" || body.payBasis === PayBasis.HOURLY ? PayBasis.HOURLY : PayBasis.MONTHLY;
+    }
+    if (body.workDaysPerWeek !== undefined) {
+      data.workDaysPerWeek = Number(body.workDaysPerWeek) === 6 ? 6 : 5;
+    }
     if (body.notes !== undefined) data.notes = body.notes || null;
     if (body.branchId !== undefined && target.role !== Role.OWNER && target.role !== Role.SUPERADMIN) {
       const branchId = Number(body.branchId);
@@ -151,6 +185,25 @@ export async function PATCH(req: NextRequest) {
         return jsonError("지점 권한 없음", 403);
       }
       data.branchId = branchId;
+    }
+
+    const nextName = data.name !== undefined ? String(data.name) : target.name;
+    const nextBranchId =
+      data.branchId !== undefined ? (data.branchId as number | null) : target.branchId;
+    if (nextBranchId != null) {
+      const nameDup = await prisma.employee.findFirst({
+        where: { branchId: nextBranchId, name: nextName, NOT: { id } },
+      });
+      if (nameDup) return jsonError("같은 지점에 동일한 이름이 이미 있습니다.");
+    }
+
+    if (needsStaffLogin(target.role) && nextBranchId != null) {
+      data.loginId = staffLoginId(nextBranchId, nextName);
+    }
+
+    if (body.password) {
+      const { hashPassword } = await import("@/lib/employees");
+      data.passwordHash = await hashPassword(String(body.password));
     }
 
     const employee = await prisma.employee.update({ where: { id }, data });
@@ -177,4 +230,53 @@ export async function PATCH(req: NextRequest) {
     if (e instanceof Response) return e;
     return jsonError(e instanceof Error ? e.message : "직원 수정 실패", 400);
   }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await requireApiOps();
+    const id = Number(req.nextUrl.searchParams.get("id"));
+    if (!id) return jsonError("직원 ID가 필요합니다.");
+    if (String(id) === session.user.id) return jsonError("본인 계정은 삭제할 수 없습니다.");
+
+    const target = await prisma.employee.findUnique({ where: { id } });
+    if (!target) return jsonError("직원을 찾을 수 없습니다.", 404);
+
+    if (!canManageEmployeeAccount(session.user.role, target.role)) {
+      return jsonError("권한이 없습니다.", 403);
+    }
+    if (!isOwnerOrBelowRole(target.role)) {
+      return jsonError("사장 이하 계정만 삭제할 수 있습니다.", 403);
+    }
+
+    if (session.user.role === Role.MANAGER) {
+      if (!target.branchId || !session.user.branchIds.includes(target.branchId)) {
+        return jsonError("권한이 없습니다.", 403);
+      }
+    }
+    if (session.user.role === Role.OWNER && target.role !== Role.OWNER) {
+      if (!target.branchId || !session.user.branchIds.includes(target.branchId)) {
+        return jsonError("권한이 없습니다.", 403);
+      }
+    }
+    if (session.user.role === Role.OWNER && target.role === Role.OWNER) {
+      const peer = await prisma.employeeBranch.findFirst({
+        where: {
+          employeeId: target.id,
+          branchId: { in: session.user.branchIds },
+        },
+      });
+      if (!peer) return jsonError("권한이 없습니다.", 403);
+    }
+
+    await prisma.employee.delete({ where: { id } });
+    return jsonOk({ deleted: true });
+  } catch (e) {
+    if (e instanceof Response) return e;
+    return jsonError(e instanceof Error ? e.message : "직원 삭제 실패", 400);
+  }
+}
+
+function isOwnerOrBelowRole(role: Role) {
+  return role === Role.OWNER || role === Role.MANAGER || role === Role.STAFF || role === Role.PARTTIME;
 }

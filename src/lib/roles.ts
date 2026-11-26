@@ -56,6 +56,22 @@ export function canAccessOps(role: string) {
   return isManagerOrOwner(role);
 }
 
+/** Targets that support 활성/비활성/삭제 (사장 이하). */
+export function isOwnerOrBelow(role: string) {
+  return role === "OWNER" || role === "MANAGER" || role === "STAFF" || role === "PARTTIME";
+}
+
+/** Whether actor may change status/delete this employee. */
+export function canManageEmployeeAccount(actorRole: string, targetRole: string) {
+  if (targetRole === "SUPERADMIN") return actorRole === "SUPERADMIN";
+  if (!isOwnerOrBelow(targetRole)) return false;
+  if (actorRole === "SUPERADMIN" || actorRole === "OWNER") return true;
+  if (actorRole === "MANAGER") {
+    return targetRole === "STAFF" || targetRole === "PARTTIME";
+  }
+  return false;
+}
+
 export function labelToRole(label: string): AppRole | null {
   const entry = Object.entries(ROLE_LABEL).find(([, v]) => v === label);
   return entry ? (entry[0] as AppRole) : null;

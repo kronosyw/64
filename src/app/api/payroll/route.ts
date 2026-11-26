@@ -74,7 +74,8 @@ export async function POST(req: NextRequest) {
       const empSchedules = schedules.filter((s) => s.employeeId === emp.id);
       const agg = aggregateSchedules(empSchedules);
       const category = resolveCategory(emp.role, emp.insuranceType);
-      const isPartTimeHourly = emp.role === Role.PARTTIME;
+      const isPartTimeHourly = emp.payBasis === "HOURLY";
+      const weekMode = emp.workDaysPerWeek === 6 ? 6 : 5;
       const monthlySalary = emp.monthlySalary || 0;
       const isHired = Boolean(
         emp.hireDate &&
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
         actualHours: agg.actualHours,
         overtimeHours: agg.overtimeHours,
         workDays: agg.workDays,
-        weekMode: 5,
+        weekMode,
         year,
         month,
         taxType,
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
         isRetired,
         workDays: agg.workDays,
         offDays: agg.offDays,
-        weekMode: 5,
+        weekMode,
         ...calc,
       };
     });

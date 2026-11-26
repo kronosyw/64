@@ -6,7 +6,7 @@ export function BarChart({
   items,
   valueKey = "value",
   labelKey = "label",
-  color = "#0c2340",
+  color = "#1a56db",
   height = 180,
 }: {
   items: Array<Record<string, string | number>>;
@@ -41,7 +41,7 @@ export function LineChart({
   items,
   valueKey = "value",
   labelKey = "label",
-  color = "#0c2340",
+  color = "#1a56db",
   height = 180,
 }: {
   items: Array<Record<string, string | number>>;
@@ -92,7 +92,7 @@ export function DonutChart({
   const r = 54;
   const c = 2 * Math.PI * r;
   let offset = 0;
-  const colors = ["#0c2340", "#2AC1BC", "#E31837", "#d0b06a", "#6b7280"];
+  const colors = ["#1a56db", "#2AC1BC", "#E31837", "#e8a317", "#64748b"];
   return (
     <div className="flex flex-wrap items-center gap-4">
       <svg viewBox="0 0 140 140" width={height} height={height} role="img">
