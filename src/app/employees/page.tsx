@@ -8,7 +8,6 @@ import {
   Message,
   Modal,
   PageHeader,
-  Panel,
   TableShell,
   TextInput,
   TextSelect,
@@ -205,9 +204,11 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm());
+  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [editForm, setEditForm] = useState<FormState>(emptyForm());
   const [message, setMessage] = useState("");
+  const [createMessage, setCreateMessage] = useState("");
   const [editMessage, setEditMessage] = useState("");
   const [actorRole, setActorRole] = useState("");
 
@@ -243,6 +244,13 @@ export default function EmployeesPage() {
     else setEditForm(apply);
   }
 
+  function openCreate() {
+    setForm(emptyForm(branches[0] ? String(branches[0].id) : ""));
+    setCreateMessage("");
+    setMessage("");
+    setCreating(true);
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const res = await fetch("/api/employees", {
@@ -256,11 +264,14 @@ export default function EmployeesPage() {
       }),
     });
     const data = await res.json();
-    setMessage(data.message || (data.success ? "등록했습니다." : "등록에 실패했습니다."));
-    if (data.success) {
-      setForm(emptyForm(branches[0] ? String(branches[0].id) : ""));
-      load();
+    if (!data.success) {
+      setCreateMessage(data.message || "등록에 실패했습니다.");
+      return;
     }
+    setCreating(false);
+    setForm(emptyForm(branches[0] ? String(branches[0].id) : ""));
+    setMessage(data.message || "등록했습니다.");
+    load();
   }
 
   function openEdit(employee: Employee) {
@@ -313,87 +324,14 @@ export default function EmployeesPage() {
       <PageHeader
         title="직원 관리"
         description="보건증·계좌·주민번호·근무형태는 급여명세서와 세무사 급여대장에 반영됩니다."
+        actions={
+          <Button type="button" onClick={openCreate}>
+            등록
+          </Button>
+        }
       />
 
-      <Panel title="계정 등록">
-        <form onSubmit={onSubmit} className="space-y-3">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Field label="이름">
-              <TextInput
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-              />
-            </Field>
-            <Field label="등급">
-              <TextSelect
-                value={form.role}
-                onChange={(e) => {
-                  const role = e.target.value;
-                  setForm({
-                    ...form,
-                    role,
-                    insuranceType: role === "PARTTIME" ? "THREE_POINT_THREE" : form.insuranceType,
-                  });
-                }}
-              >
-                {actorRole === "SUPERADMIN" ? <option value="SUPERADMIN">최고관리자</option> : null}
-                <option value="OWNER">사장</option>
-                <option value="MANAGER">지점장</option>
-                <option value="STAFF">직원</option>
-                <option value="PARTTIME">파트타임</option>
-              </TextSelect>
-            </Field>
-            <Field label="로그인 아이디">
-              <TextInput
-                value={form.loginId}
-                onChange={(e) => setForm({ ...form, loginId: e.target.value })}
-                required
-              />
-            </Field>
-            <Field label="초기 비밀번호">
-              <TextInput
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-              />
-            </Field>
-          </div>
-
-          {form.role === "SUPERADMIN" ? (
-            <p className="text-sm text-muted">최고관리자는 모든 지점의 일정, 직원, 근태, 급여, 광고를 봅니다.</p>
-          ) : form.role === "OWNER" ? (
-            <div className="flex flex-wrap gap-2">
-              {branches.map((b) => (
-                <label key={b.id} className="flex items-center gap-1 text-sm text-ink">
-                  <input
-                    type="checkbox"
-                    checked={form.ownerBranchIds.includes(b.id)}
-                    onChange={() => toggleOwnerBranch(b.id, "create")}
-                  />
-                  {b.name}
-                </label>
-              ))}
-            </div>
-          ) : (
-            <Field label="소속 지점">
-              <TextSelect value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </TextSelect>
-            </Field>
-          )}
-
-          {form.role !== "SUPERADMIN" && form.role !== "OWNER" ? <HrFields form={form} setForm={setForm} /> : null}
-
-          <Button type="submit">등록</Button>
-          {message ? <Message tone="ok">{message}</Message> : null}
-        </form>
-      </Panel>
+      {message ? <Message tone="ok">{message}</Message> : null}
 
       <TableShell>
         <div className="overflow-x-auto">
@@ -462,6 +400,102 @@ export default function EmployeesPage() {
           </table>
         </div>
       </TableShell>
+
+      {creating ? (
+        <Modal
+          title="계정 등록"
+          onClose={() => setCreating(false)}
+          footer={
+            <>
+              <Button type="submit" form="employee-create" className="flex-1" size="lg">
+                등록
+              </Button>
+              <Button type="button" variant="ghost" size="lg" onClick={() => setCreating(false)}>
+                취소
+              </Button>
+            </>
+          }
+        >
+          <form id="employee-create" onSubmit={onSubmit} className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Field label="이름">
+                <TextInput
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
+              </Field>
+              <Field label="등급">
+                <TextSelect
+                  value={form.role}
+                  onChange={(e) => {
+                    const role = e.target.value;
+                    setForm({
+                      ...form,
+                      role,
+                      insuranceType: role === "PARTTIME" ? "THREE_POINT_THREE" : form.insuranceType,
+                    });
+                  }}
+                >
+                  {actorRole === "SUPERADMIN" ? <option value="SUPERADMIN">최고관리자</option> : null}
+                  <option value="OWNER">사장</option>
+                  <option value="MANAGER">지점장</option>
+                  <option value="STAFF">직원</option>
+                  <option value="PARTTIME">파트타임</option>
+                </TextSelect>
+              </Field>
+              <Field label="로그인 아이디">
+                <TextInput
+                  value={form.loginId}
+                  onChange={(e) => setForm({ ...form, loginId: e.target.value })}
+                  required
+                />
+              </Field>
+              <Field label="초기 비밀번호">
+                <TextInput
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required
+                />
+              </Field>
+            </div>
+
+            {form.role === "SUPERADMIN" ? (
+              <p className="text-sm text-muted">최고관리자는 모든 지점의 일정, 직원, 근태, 급여, 광고를 봅니다.</p>
+            ) : form.role === "OWNER" ? (
+              <div className="flex flex-wrap gap-2">
+                {branches.map((b) => (
+                  <label key={b.id} className="flex items-center gap-1 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={form.ownerBranchIds.includes(b.id)}
+                      onChange={() => toggleOwnerBranch(b.id, "create")}
+                    />
+                    {b.name}
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <Field label="소속 지점">
+                <TextSelect value={form.branchId} onChange={(e) => setForm({ ...form, branchId: e.target.value })}>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </TextSelect>
+              </Field>
+            )}
+
+            {form.role !== "SUPERADMIN" && form.role !== "OWNER" ? (
+              <HrFields form={form} setForm={setForm} />
+            ) : null}
+
+            {createMessage ? <Message tone="danger">{createMessage}</Message> : null}
+          </form>
+        </Modal>
+      ) : null}
 
       {editing ? (
         <Modal

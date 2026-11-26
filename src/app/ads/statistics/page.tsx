@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AdsStatCards } from "@/components/ads/AdsStatCards";
 import { AdsSubnav } from "@/components/ads/AdsSubnav";
 import { BarChart, DonutChart, LineChart } from "@/components/ads/SimpleCharts";
+import { BranchSwitcher } from "@/components/ads/BranchSwitcher";
 import { MonthNav } from "@/components/ads/MonthNav";
-import { Message, PageHeader, Panel, TableShell, TextSelect } from "@/components/ui";
+import { Message, Panel, TableShell } from "@/components/ui";
 import { AdsBranch, formatNum, shiftYearMonth } from "@/lib/ads-ui";
 
 type Summary = {
@@ -75,18 +77,14 @@ export default function AdsStatisticsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="광고통계"
-        description="월간 리뷰 성장과 광고 효율을 한눈에 봅니다."
-        actions={
+      <section className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-ink">광고통계</h1>
+            <p className="mt-0.5 text-sm text-muted">월간 리뷰 성장과 광고 효율을 한눈에 봅니다.</p>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
-            <TextSelect className="w-auto" value={branchId ?? ""} onChange={(e) => setBranchId(Number(e.target.value))}>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </TextSelect>
+            <BranchSwitcher branches={branches} value={branchId} onChange={setBranchId} />
             <MonthNav
               year={year}
               month={month}
@@ -102,24 +100,21 @@ export default function AdsStatisticsPage() {
               }}
             />
           </div>
-        }
-      />
-      <AdsSubnav />
+        </div>
+        <div className="bg-paper/55 px-4 py-3">
+          <AdsSubnav />
+        </div>
+      </section>
       {message ? <Message>{message}</Message> : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          ["총 광고비", stats?.summary?.adSpend],
-          ["총 주문수", stats?.summary?.orders],
-          ["총 주문금액", stats?.summary?.orderAmount],
-          ["평균 ROAS %", avgRoas],
-        ].map(([label, value]) => (
-          <Panel key={String(label)}>
-            <p className="text-xs text-muted">{label}</p>
-            <p className="mt-1 text-xl font-bold">{formatNum(Number(value || 0))}</p>
-          </Panel>
-        ))}
-      </div>
+      <AdsStatCards
+        items={[
+          { label: "총 광고비", value: formatNum(Number(stats?.summary?.adSpend || 0)) },
+          { label: "총 주문수", value: formatNum(Number(stats?.summary?.orders || 0)) },
+          { label: "총 주문금액", value: formatNum(Number(stats?.summary?.orderAmount || 0)) },
+          { label: "평균 ROAS %", value: formatNum(Number(avgRoas || 0)) },
+        ]}
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="점포별 리뷰 증감">

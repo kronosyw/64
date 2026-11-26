@@ -1,17 +1,18 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { AdsChipGroup } from "@/components/ads/AdsChipGroup";
+import { AdsStatCards } from "@/components/ads/AdsStatCards";
 import { AdsSubnav } from "@/components/ads/AdsSubnav";
+import { BranchSwitcher } from "@/components/ads/BranchSwitcher";
 import { MonthNav } from "@/components/ads/MonthNav";
 import {
   Button,
+  EmptyState,
   Field,
   Message,
-  PageHeader,
-  Panel,
-  TableShell,
+  Modal,
   TextInput,
-  TextSelect,
 } from "@/components/ui";
 import { calcAdMetrics } from "@/lib/ads";
 import {
@@ -21,6 +22,7 @@ import {
   dateKey,
   formatNum,
   shiftYearMonth,
+  weekendRowClass,
 } from "@/lib/ads-ui";
 
 type Cost = {
@@ -78,8 +80,9 @@ export default function AdsCostsPage() {
   const [stores, setStores] = useState<AdsStore[]>([]);
   const [costs, setCosts] = useState<Cost[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [platformFilter, setPlatformFilter] = useState("");
-  const [storeFilter, setStoreFilter] = useState("");
+  const [platformFilter, setPlatformFilter] = useState("all");
+  const [storeFilter, setStoreFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -108,23 +111,28 @@ export default function AdsCostsPage() {
   }
 
   async function loadCosts(id: number, y: number, m: number) {
-    const q = new URLSearchParams({
-      type: "costs",
-      branchId: String(id),
-      year: String(y),
-      month: String(m),
-    });
-    if (platformFilter) q.set("platformId", platformFilter);
-    if (storeFilter) q.set("storeId", storeFilter);
-    const [costRes, storeRes] = await Promise.all([
-      fetch(`/api/ads?${q}`).then((r) => r.json()),
-      fetch(`/api/ads?type=stores&storeType=OWN&branchId=${id}`).then((r) => r.json()),
-    ]);
-    if (costRes.success) {
-      setCosts(costRes.costs || []);
-      setSummary(costRes.summary || null);
-    } else setMessage(costRes.message || "불러오기 실패");
-    if (storeRes.success) setStores(storeRes.stores || []);
+    setLoading(true);
+    try {
+      const q = new URLSearchParams({
+        type: "costs",
+        branchId: String(id),
+        year: String(y),
+        month: String(m),
+      });
+      if (platformFilter !== "all") q.set("platformId", platformFilter);
+      if (storeFilter !== "all") q.set("storeId", storeFilter);
+      const [costRes, storeRes] = await Promise.all([
+        fetch(`/api/ads?${q}`).then((r) => r.json()),
+        fetch(`/api/ads?type=stores&storeType=OWN&branchId=${id}`).then((r) => r.json()),
+      ]);
+      if (costRes.success) {
+        setCosts(costRes.costs || []);
+        setSummary(costRes.summary || null);
+      } else setMessage(costRes.message || "불러오기 실패");
+      if (storeRes.success) setStores(storeRes.stores || []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -204,20 +212,35 @@ export default function AdsCostsPage() {
     if (data.success && branchId) loadCosts(branchId, year, month);
   }
 
+  const footerMetrics = useMemo(() => {
+    if (summary) return summary;
+    return calcAdMetrics({
+      adSpend: 0,
+      impressions: 0,
+      clicks: 0,
+      orders: 0,
+      orderAmount: 0,
+    });
+  }, [summary]);
+
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="광고비관리"
-        description="자사 점포의 일별 광고비·성과와 효율 지표를 관리합니다."
-        actions={
+      <section className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-4">
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className="inline-flex h-9 w-9 items-center justify-center rounded-btn bg-ink/10 text-base font-bold text-ink"
+            >
+              ₩
+            </span>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-ink">광고비관리</h1>
+              <p className="mt-0.5 text-sm text-muted">자사 점포 일별 광고비·성과와 효율 지표를 관리합니다.</p>
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
-            <TextSelect className="w-auto" value={branchId ?? ""} onChange={(e) => setBranchId(Number(e.target.value))}>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </TextSelect>
+            <BranchSwitcher branches={branches} value={branchId} onChange={setBranchId} />
             <MonthNav
               year={year}
               month={month}
@@ -232,188 +255,270 @@ export default function AdsCostsPage() {
                 setMonth(n.month);
               }}
             />
-            <Button type="button" onClick={openCreate}>
-              입력
+            <Button type="button" variant="gold" size="lg" onClick={openCreate}>
+              광고비 입력
             </Button>
           </div>
-        }
-      />
-      <AdsSubnav />
-      {message ? <Message>{message}</Message> : null}
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {[
-          ["광고지출", summary?.adSpend],
-          ["노출", summary?.impressions],
-          ["클릭", summary?.clicks],
-          ["주문", summary?.orders],
-          ["주문금액", summary?.orderAmount],
-        ].map(([label, value]) => (
-          <Panel key={String(label)}>
-            <p className="text-xs text-muted">{label}</p>
-            <p className="mt-1 text-lg font-bold">{formatNum(Number(value || 0))}</p>
-          </Panel>
-        ))}
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {[
-          ["CTR %", summary?.ctr],
-          ["CVR %", summary?.cvr],
-          ["CPC", summary?.cpc],
-          ["CPA", summary?.cpa],
-          ["ROAS %", summary?.roas],
-        ].map(([label, value]) => (
-          <Panel key={String(label)}>
-            <p className="text-xs text-muted">{label}</p>
-            <p className="mt-1 text-lg font-bold">{Number(value || 0).toLocaleString("ko-KR")}</p>
-          </Panel>
-        ))}
-      </div>
-
-      <Panel title="필터">
-        <div className="flex flex-wrap gap-3">
-          <Field label="플랫폼">
-            <TextSelect value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)}>
-              <option value="">전체</option>
-              {platforms.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </TextSelect>
-          </Field>
-          <Field label="점포">
-            <TextSelect value={storeFilter} onChange={(e) => setStoreFilter(e.target.value)}>
-              <option value="">전체</option>
-              {stores.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </TextSelect>
-          </Field>
         </div>
-      </Panel>
 
-      <Panel title="일별 광고비">
-        <TableShell>
-          <thead>
-            <tr className="border-b border-line text-left text-xs text-muted">
-              <th className="px-2 py-2">날짜</th>
-              <th className="px-2 py-2">점포</th>
-              <th className="px-2 py-2">플랫폼</th>
-              <th className="px-2 py-2">지출</th>
-              <th className="px-2 py-2">노출</th>
-              <th className="px-2 py-2">클릭</th>
-              <th className="px-2 py-2">주문</th>
-              <th className="px-2 py-2">주문금액</th>
-              <th className="px-2 py-2">CTR</th>
-              <th className="px-2 py-2">CVR</th>
-              <th className="px-2 py-2">CPC</th>
-              <th className="px-2 py-2">ROAS</th>
-              <th className="px-2 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {costs.map((c) => (
-              <tr key={c.id} className="border-b border-line/70 text-sm">
-                <td className="px-2 py-1.5 whitespace-nowrap">{dateKey(c.costDate)}</td>
-                <td className="px-2 py-1.5">{c.store?.name}</td>
-                <td className="px-2 py-1.5">{c.platform?.name}</td>
-                <td className="px-2 py-1.5 tabular-nums">{formatNum(c.adSpend)}</td>
-                <td className="px-2 py-1.5 tabular-nums">{formatNum(c.impressions)}</td>
-                <td className="px-2 py-1.5 tabular-nums">{formatNum(c.clicks)}</td>
-                <td className="px-2 py-1.5 tabular-nums">{formatNum(c.orders)}</td>
-                <td className="px-2 py-1.5 tabular-nums">{formatNum(c.orderAmount)}</td>
-                <td className="px-2 py-1.5 tabular-nums">{Number(c.ctr)}</td>
-                <td className="px-2 py-1.5 tabular-nums">{Number(c.cvr)}</td>
-                <td className="px-2 py-1.5 tabular-nums">{formatNum(c.cpc)}</td>
-                <td className="px-2 py-1.5 tabular-nums">{Number(c.roas)}</td>
-                <td className="px-2 py-1.5 whitespace-nowrap">
-                  <Button type="button" size="sm" variant="ghost" onClick={() => openEdit(c)}>
-                    수정
-                  </Button>
-                  <Button type="button" size="sm" variant="danger" onClick={() => deleteCost(c.id)}>
-                    삭제
-                  </Button>
-                </td>
-              </tr>
-            ))}
-            {costs.length === 0 ? (
-              <tr>
-                <td colSpan={13} className="px-2 py-6 text-center text-sm text-muted">
-                  데이터가 없습니다.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </TableShell>
-      </Panel>
+        <div className="border-b border-line bg-paper/55 px-4 py-3">
+          <AdsSubnav />
+        </div>
+
+        <div className="flex flex-wrap items-end gap-4 px-4 py-3">
+          <AdsChipGroup
+            label="플랫폼"
+            value={platformFilter}
+            onChange={setPlatformFilter}
+            options={[
+              { id: "all", label: "전체" },
+              ...platforms.map((p) => ({ id: String(p.id), label: p.name })),
+            ]}
+          />
+          <AdsChipGroup
+            label="점포 (자사)"
+            value={storeFilter}
+            onChange={setStoreFilter}
+            options={[
+              { id: "all", label: "전체" },
+              ...stores.map((s) => ({
+                id: String(s.id),
+                label: s.platform?.name ? `${s.name}` : s.name,
+              })),
+            ]}
+          />
+        </div>
+      </section>
+
+      {message ? <Message tone="ok">{message}</Message> : null}
+      {loading ? <p className="text-sm text-muted">불러오는 중…</p> : null}
+
+      <AdsStatCards
+        columns={5}
+        items={[
+          { label: "광고지출", value: formatNum(summary?.adSpend || 0) },
+          { label: "노출", value: formatNum(summary?.impressions || 0) },
+          { label: "클릭", value: formatNum(summary?.clicks || 0) },
+          { label: "주문", value: formatNum(summary?.orders || 0) },
+          { label: "주문금액", value: formatNum(summary?.orderAmount || 0) },
+        ]}
+      />
+      <AdsStatCards
+        columns={5}
+        items={[
+          { label: "CTR %", value: Number(summary?.ctr || 0).toLocaleString("ko-KR"), hint: "클릭율" },
+          { label: "CVR %", value: Number(summary?.cvr || 0).toLocaleString("ko-KR"), hint: "전환율" },
+          { label: "CPC", value: formatNum(summary?.cpc || 0), hint: "클릭당비용" },
+          { label: "CPA", value: formatNum(summary?.cpa || 0), hint: "주문당비용" },
+          { label: "ROAS %", value: Number(summary?.roas || 0).toLocaleString("ko-KR"), hint: "광고수익률" },
+        ]}
+      />
+
+      <section className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
+          <h2 className="font-semibold text-ink">일별 광고비</h2>
+          <p className="text-[11px] text-muted">
+            CTR: 클릭율 | CVR: 전환율 | CPC: 클릭당비용 | CPA: 주문당비용 | ROAS: 광고수익률
+          </p>
+        </div>
+
+        {!loading && costs.length === 0 ? (
+          <div className="p-4">
+            <EmptyState>
+              <p className="mb-3">데이터가 없습니다.</p>
+              <Button type="button" onClick={openCreate}>
+                첫 데이터 입력
+              </Button>
+            </EmptyState>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-[980px] w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-line bg-paper/60 text-left text-xs text-muted">
+                  {[
+                    "날짜",
+                    "점포",
+                    "플랫폼",
+                    "광고지출",
+                    "노출수",
+                    "클릭수",
+                    "주문수",
+                    "주문금액",
+                    "CTR",
+                    "CVR",
+                    "CPC",
+                    "ROAS",
+                    "관리",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className={`px-2.5 py-2.5 font-medium ${
+                        ["광고지출", "노출수", "클릭수", "주문수", "주문금액", "CTR", "CVR", "CPC", "ROAS"].includes(h)
+                          ? "text-right"
+                          : ""
+                      }`}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {costs.map((c) => (
+                  <tr
+                    key={c.id}
+                    className={`border-b border-line/70 ${weekendRowClass(c.costDate)}`}
+                  >
+                    <td className="px-2.5 py-1.5 whitespace-nowrap">{dateKey(c.costDate)}</td>
+                    <td className="px-2.5 py-1.5">{c.store?.name}</td>
+                    <td className="px-2.5 py-1.5">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: c.platform?.colorCode || "#94a3b8" }}
+                        />
+                        {c.platform?.name}
+                      </span>
+                    </td>
+                    <td className="px-2.5 py-1.5 text-right tabular-nums">{formatNum(c.adSpend)}</td>
+                    <td className="px-2.5 py-1.5 text-right tabular-nums">{formatNum(c.impressions)}</td>
+                    <td className="px-2.5 py-1.5 text-right tabular-nums">{formatNum(c.clicks)}</td>
+                    <td className="px-2.5 py-1.5 text-right tabular-nums">{formatNum(c.orders)}</td>
+                    <td className="px-2.5 py-1.5 text-right tabular-nums">{formatNum(c.orderAmount)}</td>
+                    <td className="px-2.5 py-1.5 text-right tabular-nums">{Number(c.ctr)}</td>
+                    <td className="px-2.5 py-1.5 text-right tabular-nums">{Number(c.cvr)}</td>
+                    <td className="px-2.5 py-1.5 text-right tabular-nums">{formatNum(c.cpc)}</td>
+                    <td className="px-2.5 py-1.5 text-right tabular-nums">{Number(c.roas)}</td>
+                    <td className="px-2.5 py-1.5 whitespace-nowrap">
+                      <Button type="button" size="sm" variant="link" onClick={() => openEdit(c)}>
+                        수정
+                      </Button>
+                      <Button type="button" size="sm" variant="link" className="text-danger" onClick={() => deleteCost(c.id)}>
+                        삭제
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {costs.length ? (
+                <tfoot>
+                  <tr className="border-t-2 border-ink/15 bg-paper/80 text-sm font-semibold">
+                    <td className="px-2.5 py-2.5" colSpan={3}>
+                      합계
+                    </td>
+                    <td className="px-2.5 py-2.5 text-right tabular-nums">{formatNum(footerMetrics.adSpend)}</td>
+                    <td className="px-2.5 py-2.5 text-right tabular-nums">{formatNum(footerMetrics.impressions)}</td>
+                    <td className="px-2.5 py-2.5 text-right tabular-nums">{formatNum(footerMetrics.clicks)}</td>
+                    <td className="px-2.5 py-2.5 text-right tabular-nums">{formatNum(footerMetrics.orders)}</td>
+                    <td className="px-2.5 py-2.5 text-right tabular-nums">{formatNum(footerMetrics.orderAmount)}</td>
+                    <td className="px-2.5 py-2.5 text-right tabular-nums">{footerMetrics.ctr}</td>
+                    <td className="px-2.5 py-2.5 text-right tabular-nums">{footerMetrics.cvr}</td>
+                    <td className="px-2.5 py-2.5 text-right tabular-nums">{formatNum(footerMetrics.cpc)}</td>
+                    <td className="px-2.5 py-2.5 text-right tabular-nums">{footerMetrics.roas}</td>
+                    <td className="px-2.5 py-2.5" />
+                  </tr>
+                </tfoot>
+              ) : null}
+            </table>
+          </div>
+        )}
+      </section>
 
       {showForm ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <form onSubmit={saveCost} className="max-h-[90vh] w-full max-w-lg space-y-3 overflow-y-auto rounded-panel bg-card p-4 shadow-lg">
-            <h3 className="font-semibold">{form.id ? "광고비 수정" : "광고비 입력"}</h3>
+        <Modal
+          title={form.id ? "광고비 수정" : "광고비 입력"}
+          onClose={() => setShowForm(false)}
+          footer={
+            <>
+              <Button type="submit" form="ads-cost-form" className="flex-1" size="lg">
+                저장
+              </Button>
+              <Button type="button" variant="ghost" size="lg" onClick={() => setShowForm(false)}>
+                취소
+              </Button>
+            </>
+          }
+        >
+          <form id="ads-cost-form" onSubmit={saveCost} className="space-y-3">
             {!form.id ? (
               <>
-                <Field label="점포(자사)">
-                  <TextSelect
-                    value={form.storeId}
-                    onChange={(e) => setForm({ ...form, storeId: e.target.value })}
-                    required
-                  >
-                    <option value="">선택</option>
-                    {stores.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.platform?.name})
-                      </option>
-                    ))}
-                  </TextSelect>
-                </Field>
+                <AdsChipGroup
+                  label="점포(자사)"
+                  value={form.storeId || "none"}
+                  onChange={(id) => {
+                    if (id === "none") return;
+                    setForm({ ...form, storeId: id });
+                  }}
+                  options={
+                    stores.length
+                      ? stores.map((s) => ({
+                          id: String(s.id),
+                          label: `${s.name}${s.platform?.name ? ` · ${s.platform.name}` : ""}`,
+                        }))
+                      : [{ id: "none", label: "자사 점포 없음" }]
+                  }
+                />
                 <Field label="날짜">
-                  <TextInput type="date" value={form.costDate} onChange={(e) => setForm({ ...form, costDate: e.target.value })} required />
+                  <TextInput
+                    type="date"
+                    value={form.costDate}
+                    onChange={(e) => setForm({ ...form, costDate: e.target.value })}
+                    required
+                  />
                 </Field>
               </>
             ) : (
-              <p className="text-sm text-muted">
-                {form.costDate} · 점포/날짜는 수정하지 않습니다 (원본과 동일).
+              <p className="rounded-btn border border-line bg-paper/60 px-3 py-2 text-sm text-muted">
+                {form.costDate} · 점포/날짜/플랫폼은 잠금 · 수치·메모만 수정
               </p>
             )}
-            {(
-              [
-                ["adSpend", "광고비"],
-                ["impressions", "노출"],
-                ["clicks", "클릭"],
-                ["orders", "주문"],
-                ["orderAmount", "주문금액"],
-              ] as const
-            ).map(([key, label]) => (
-              <Field key={key} label={label}>
-                <TextInput
-                  type="number"
-                  value={form[key]}
-                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                />
-              </Field>
-            ))}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  ["adSpend", "광고비"],
+                  ["impressions", "노출"],
+                  ["clicks", "클릭"],
+                  ["orders", "주문"],
+                  ["orderAmount", "주문금액"],
+                ] as const
+              ).map(([key, label]) => (
+                <Field key={key} label={label}>
+                  <TextInput
+                    type="number"
+                    value={form[key]}
+                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  />
+                </Field>
+              ))}
+            </div>
             <Field label="메모">
               <TextInput value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </Field>
-            <div className="grid grid-cols-5 gap-2 rounded-btn bg-paper p-2 text-center text-xs">
-              <div>CTR {preview.ctr}</div>
-              <div>CVR {preview.cvr}</div>
-              <div>CPC {preview.cpc}</div>
-              <div>CPA {preview.cpa}</div>
-              <div>ROAS {preview.roas}</div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
-                취소
-              </Button>
-              <Button type="submit">저장</Button>
+            <div className="grid grid-cols-5 gap-1.5 rounded-btn border border-line bg-paper/70 p-2 text-center text-[11px]">
+              <div>
+                <div className="text-muted">CTR</div>
+                <div className="font-semibold tabular-nums text-ink">{preview.ctr}</div>
+              </div>
+              <div>
+                <div className="text-muted">CVR</div>
+                <div className="font-semibold tabular-nums text-ink">{preview.cvr}</div>
+              </div>
+              <div>
+                <div className="text-muted">CPC</div>
+                <div className="font-semibold tabular-nums text-ink">{preview.cpc}</div>
+              </div>
+              <div>
+                <div className="text-muted">CPA</div>
+                <div className="font-semibold tabular-nums text-ink">{preview.cpa}</div>
+              </div>
+              <div>
+                <div className="text-muted">ROAS</div>
+                <div className="font-semibold tabular-nums text-ink">{preview.roas}</div>
+              </div>
             </div>
           </form>
-        </div>
+        </Modal>
       ) : null}
     </div>
   );

@@ -1,14 +1,17 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { AdsChipGroup } from "@/components/ads/AdsChipGroup";
+import { AdsStatCards } from "@/components/ads/AdsStatCards";
 import { AdsSubnav } from "@/components/ads/AdsSubnav";
+import { BranchSwitcher } from "@/components/ads/BranchSwitcher";
 import { MonthNav } from "@/components/ads/MonthNav";
 import {
   Button,
+  EmptyState,
   Field,
   Message,
-  PageHeader,
-  Panel,
+  Modal,
   TextInput,
   TextSelect,
 } from "@/components/ui";
@@ -21,6 +24,7 @@ import {
   formatNum,
   shiftYearMonth,
   weekdayOf,
+  weekendDayClass,
 } from "@/lib/ads-ui";
 
 type Review = { id: number; storeId: number; reviewDate: string; reviewCount: number };
@@ -37,6 +41,9 @@ export default function AdsReviewsPage() {
   const [prevByStore, setPrevByStore] = useState<Record<string, number>>({});
   const [platformFilter, setPlatformFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [showStore, setShowStore] = useState(false);
   const [showPlatform, setShowPlatform] = useState(false);
@@ -46,7 +53,18 @@ export default function AdsReviewsPage() {
   const [bulkDate, setBulkDate] = useState(now.toISOString().slice(0, 10));
   const [bulkRows, setBulkRows] = useState<Record<number, string>>({});
 
-  const days = daysInMonth(year, month);
+  const monthDays = daysInMonth(year, month);
+
+  const dayList = useMemo(() => {
+    const all = Array.from({ length: monthDays }, (_, i) => i + 1);
+    if (!startDate && !endDate) return all;
+    return all.filter((d) => {
+      const key = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      if (startDate && key < startDate) return false;
+      if (endDate && key > endDate) return false;
+      return true;
+    });
+  }, [monthDays, year, month, startDate, endDate]);
 
   async function loadMeta() {
     const [bRes, pRes] = await Promise.all([fetch("/api/branches"), fetch("/api/ads?type=platforms")]);
@@ -65,18 +83,23 @@ export default function AdsReviewsPage() {
   }
 
   async function loadReviews(id: number, y: number, m: number) {
-    const res = await fetch(`/api/ads?type=reviews&branchId=${id}&year=${y}&month=${m}`);
-    const data = await res.json();
-    if (!data.success) {
-      setMessage(data.message || "불러오기 실패");
-      return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/ads?type=reviews&branchId=${id}&year=${y}&month=${m}`);
+      const data = await res.json();
+      if (!data.success) {
+        setMessage(data.message || "불러오기 실패");
+        return;
+      }
+      setStores(data.stores || []);
+      setReviews(data.reviews || []);
+      setPrevByStore(data.prevByStore || {});
+      const rows: Record<number, string> = {};
+      for (const s of data.stores || []) rows[s.id] = "";
+      setBulkRows(rows);
+    } finally {
+      setLoading(false);
     }
-    setStores(data.stores || []);
-    setReviews(data.reviews || []);
-    setPrevByStore(data.prevByStore || {});
-    const rows: Record<number, string> = {};
-    for (const s of data.stores || []) rows[s.id] = "";
-    setBulkRows(rows);
   }
 
   useEffect(() => {
@@ -94,11 +117,16 @@ export default function AdsReviewsPage() {
   }, [reviews]);
 
   const filteredStores = useMemo(() => {
-    return stores.filter((s) => {
-      if (platformFilter !== "all" && String(s.platformId) !== platformFilter) return false;
-      if (typeFilter !== "all" && s.storeType !== typeFilter) return false;
-      return true;
-    });
+    return stores
+      .filter((s) => {
+        if (platformFilter !== "all" && String(s.platformId) !== platformFilter) return false;
+        if (typeFilter !== "all" && s.storeType !== typeFilter) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (a.storeType !== b.storeType) return a.storeType === "OWN" ? -1 : 1;
+        return a.name.localeCompare(b.name, "ko");
+      });
   }, [stores, platformFilter, typeFilter]);
 
   const byPlatform = useMemo(() => {
@@ -116,7 +144,7 @@ export default function AdsReviewsPage() {
     let ownGrowth = 0;
     for (const s of own) {
       const counts: number[] = [];
-      for (let d = 1; d <= days; d++) {
+      for (const d of dayList) {
         const key = `${s.id}:${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
         if (reviewMap.has(key)) counts.push(reviewMap.get(key)!);
       }
@@ -128,7 +156,7 @@ export default function AdsReviewsPage() {
       ownGrowth,
       ownAvg: own.length ? Math.round((ownGrowth / own.length) * 10) / 10 : 0,
     };
-  }, [stores, reviewMap, days, year, month]);
+  }, [stores, reviewMap, dayList, year, month]);
 
   function cell(storeId: number, day: number) {
     const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -140,6 +168,13 @@ export default function AdsReviewsPage() {
     }
     const delta = count != null && prev != null ? count - prev : null;
     return { count, delta };
+  }
+
+  function resetFilters() {
+    setPlatformFilter("all");
+    setTypeFilter("all");
+    setStartDate("");
+    setEndDate("");
   }
 
   async function saveStore(e: FormEvent) {
@@ -200,24 +235,30 @@ export default function AdsReviewsPage() {
     }
   }
 
+  const bulkStores = useMemo(() => {
+    return filteredStores.length ? filteredStores : stores;
+  }, [filteredStores, stores]);
+
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="리뷰분석"
-        description="자사·경쟁사 일별 리뷰수와 증감을 비교합니다."
-        actions={
+      <section className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="inline-flex h-9 w-9 items-center justify-center rounded-btn bg-gold/25 text-lg text-ink"
+              >
+                ★
+              </span>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-ink">리뷰분석</h1>
+                <p className="mt-0.5 text-sm text-muted">자사·경쟁사 일별 리뷰수와 증감을 비교합니다.</p>
+              </div>
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
-            <TextSelect
-              className="w-auto"
-              value={branchId ?? ""}
-              onChange={(e) => setBranchId(Number(e.target.value))}
-            >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </TextSelect>
+            <BranchSwitcher branches={branches} value={branchId} onChange={setBranchId} />
             <MonthNav
               year={year}
               month={month}
@@ -233,117 +274,153 @@ export default function AdsReviewsPage() {
               }}
             />
           </div>
-        }
-      />
-      <AdsSubnav />
-      {message ? <Message>{message}</Message> : null}
+        </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          ["등록 점포", summary.storeCount],
-          ["자사 점포", summary.ownCount],
-          ["자사 월 리뷰 증가", summary.ownGrowth],
-          ["자사 평균 증가", summary.ownAvg],
-        ].map(([label, value]) => (
-          <Panel key={String(label)}>
-            <p className="text-xs text-muted">{label}</p>
-            <p className="mt-1 text-xl font-bold">{formatNum(Number(value))}</p>
-          </Panel>
-        ))}
-      </div>
+        <div className="border-b border-line bg-paper/55 px-4 py-3">
+          <AdsSubnav />
+        </div>
 
-      <Panel
-        title="필터 · 입력"
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="ghost" onClick={() => setShowPlatform(true)}>
-              플랫폼
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setShowStore(true)}>
-              점포
-            </Button>
-            <Button type="button" size="sm" onClick={() => setShowBulk(true)}>
-              리뷰 일괄입력
+        <div className="flex flex-wrap items-end gap-4 border-b border-line bg-paper/35 px-4 py-3">
+          <AdsChipGroup
+            label="플랫폼"
+            value={platformFilter}
+            onChange={setPlatformFilter}
+            options={[
+              { id: "all", label: "전체" },
+              ...platforms.map((p) => ({ id: String(p.id), label: p.name })),
+            ]}
+          />
+          <AdsChipGroup
+            label="점포유형"
+            value={typeFilter}
+            onChange={setTypeFilter}
+            options={[
+              { id: "all", label: "전체" },
+              { id: "OWN", label: "자사" },
+              { id: "COMPETITOR", label: "경쟁사" },
+            ]}
+          />
+          <div className="flex flex-wrap items-end gap-2">
+            <Field label="기간(선택)">
+              <div className="flex items-center gap-1.5">
+                <TextInput
+                  type="date"
+                  className="w-auto min-w-[9.5rem]"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+                <span className="text-muted">~</span>
+                <TextInput
+                  type="date"
+                  className="w-auto min-w-[9.5rem]"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </Field>
+            <Button type="button" variant="soft" size="sm" className="mb-0.5" onClick={resetFilters}>
+              초기화
             </Button>
           </div>
-        }
-      >
-        <div className="flex flex-wrap gap-3">
-          <Field label="플랫폼">
-            <TextSelect value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)}>
-              <option value="all">전체</option>
-              {platforms.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </TextSelect>
-          </Field>
-          <Field label="점포유형">
-            <TextSelect value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-              <option value="all">전체</option>
-              <option value="OWN">자사</option>
-              <option value="COMPETITOR">경쟁사</option>
-            </TextSelect>
-          </Field>
-          <Button
-            type="button"
-            variant="soft"
-            size="sm"
-            className="self-end"
-            onClick={() => {
-              setPlatformFilter("all");
-              setTypeFilter("all");
-            }}
-          >
-            초기화
-          </Button>
         </div>
-      </Panel>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <Button type="button" variant="gold" size="lg" onClick={() => setShowBulk(true)}>
+            리뷰수 입력
+          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={() => setShowStore(true)}>
+              점포추가
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setShowPlatform(true)}>
+              플랫폼추가
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {message ? <Message tone="ok">{message}</Message> : null}
+      {loading ? <p className="text-sm text-muted">불러오는 중…</p> : null}
+
+      <AdsStatCards
+        items={[
+          { label: "등록 점포", value: formatNum(summary.storeCount) },
+          { label: "자사 점포", value: formatNum(summary.ownCount) },
+          { label: "자사 월 리뷰 증가", value: formatNum(summary.ownGrowth) },
+          { label: "자사 평균 증가", value: formatNum(summary.ownAvg) },
+        ]}
+      />
+
+      {!loading && stores.length === 0 ? (
+        <EmptyState>
+          <p className="mb-3">등록된 점포가 없습니다.</p>
+          <Button type="button" onClick={() => setShowStore(true)}>
+            첫 점포 추가
+          </Button>
+        </EmptyState>
+      ) : null}
 
       {[...byPlatform.entries()].map(([platformId, list]) => {
         const platform = platforms.find((p) => p.id === platformId) || list[0]?.platform;
+        const accent = platform?.colorCode || "#0c2340";
         return (
-          <Panel key={platformId} title={platform?.name || `플랫폼 ${platformId}`}>
+          <section
+            key={platformId}
+            className="overflow-hidden rounded-panel border border-line bg-card shadow-[0_1px_0_rgba(12,35,64,0.04)]"
+          >
+            <div className="flex items-center gap-2 border-b border-line px-4 py-3">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: accent }} />
+              <h2 className="font-semibold text-ink">{platform?.name || `플랫폼 ${platformId}`}</h2>
+              <span className="text-xs text-muted">{list.length}개 점포</span>
+            </div>
             <div className="overflow-x-auto">
               <table className="min-w-full border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-line text-muted">
-                    <th className="sticky left-0 z-10 bg-card px-2 py-2 text-left">점포</th>
-                    {Array.from({ length: days }, (_, i) => i + 1).map((d) => {
+                    <th className="sticky left-0 z-10 bg-card px-3 py-2.5 text-left font-medium shadow-[2px_0_0_rgba(12,35,64,0.06)]">
+                      점포
+                    </th>
+                    {dayList.map((d) => {
                       const wd = weekdayOf(year, month, d);
                       return (
                         <th
                           key={d}
-                          className={`px-1 py-2 text-center ${wd === 0 ? "bg-red-50" : wd === 6 ? "bg-amber-50" : ""}`}
+                          className={`min-w-[2.1rem] px-1 py-2 text-center font-medium ${weekendDayClass(wd)}`}
                         >
                           {d}
                         </th>
                       );
                     })}
-                    <th className="px-2 py-2">증감</th>
-                    <th className="px-2 py-2">평균</th>
+                    <th className="px-2 py-2 font-medium">증감</th>
+                    <th className="px-2 py-2 font-medium">평균</th>
                   </tr>
                 </thead>
                 <tbody>
                   {list.map((store) => {
                     const counts: number[] = [];
-                    let monthDelta = 0;
-                    const cells = Array.from({ length: days }, (_, i) => i + 1).map((d) => {
+                    const cells = dayList.map((d) => {
                       const { count, delta } = cell(store.id, d);
                       if (count != null) counts.push(count);
                       return { d, count, delta };
                     });
-                    if (counts.length) monthDelta = Math.max(...counts) - Math.min(...counts);
-                    const avg = counts.length ? Math.round(counts.reduce((a, b) => a + b, 0) / counts.length) : 0;
+                    const monthDelta = counts.length ? Math.max(...counts) - Math.min(...counts) : 0;
+                    const avg = counts.length
+                      ? Math.round(counts.reduce((a, b) => a + b, 0) / counts.length)
+                      : 0;
+                    const rowBg = store.storeType === "OWN" ? "bg-sky-50/55" : "bg-card";
                     return (
-                      <tr
-                        key={store.id}
-                        className={`border-b border-line/70 ${store.storeType === "OWN" ? "bg-blue-50/40" : ""}`}
-                      >
-                        <td className="sticky left-0 z-10 bg-inherit px-2 py-1.5 font-medium whitespace-nowrap">
+                      <tr key={store.id} className={`border-b border-line/70 ${rowBg}`}>
+                        <td
+                          className={`sticky left-0 z-10 px-3 py-1.5 font-medium whitespace-nowrap shadow-[2px_0_0_rgba(12,35,64,0.06)] ${rowBg}`}
+                        >
                           {store.name}
-                          <span className="ml-1 text-[10px] text-muted">
+                          <span
+                            className={`ml-1.5 inline-flex rounded-full px-1.5 py-0.5 text-[10px] ${
+                              store.storeType === "OWN"
+                                ? "bg-ink/10 text-ink"
+                                : "bg-line/80 text-muted"
+                            }`}
+                          >
                             {store.storeType === "OWN" ? "자사" : "경쟁"}
                           </span>
                         </td>
@@ -352,18 +429,26 @@ export default function AdsReviewsPage() {
                           return (
                             <td
                               key={d}
-                              className={`px-1 py-1 text-center tabular-nums ${wd === 0 ? "bg-red-50/80" : wd === 6 ? "bg-amber-50/80" : ""}`}
+                              className={`px-1 py-1 text-center tabular-nums ${weekendDayClass(wd)}`}
                             >
-                              {count != null ? formatNum(count) : "-"}
+                              {count != null ? formatNum(count) : (
+                                <span className="text-muted/70">-</span>
+                              )}
                               {delta != null && delta !== 0 ? (
-                                <div className={`text-[10px] ${delta > 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                <div
+                                  className={`text-[10px] font-medium ${
+                                    delta > 0 ? "text-emerald-600" : "text-red-600"
+                                  }`}
+                                >
                                   {delta > 0 ? `+${delta}` : delta}
                                 </div>
                               ) : null}
                             </td>
                           );
                         })}
-                        <td className="px-2 py-1 text-center font-medium tabular-nums">{formatNum(monthDelta)}</td>
+                        <td className="px-2 py-1 text-center font-semibold tabular-nums text-ink">
+                          {formatNum(monthDelta)}
+                        </td>
                         <td className="px-2 py-1 text-center tabular-nums">{formatNum(avg)}</td>
                       </tr>
                     );
@@ -371,16 +456,32 @@ export default function AdsReviewsPage() {
                 </tbody>
               </table>
             </div>
-          </Panel>
+          </section>
         );
       })}
 
       {showStore ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <form onSubmit={saveStore} className="w-full max-w-md space-y-3 rounded-panel bg-card p-4 shadow-lg">
-            <h3 className="font-semibold">점포 추가</h3>
+        <Modal
+          title="점포 추가"
+          onClose={() => setShowStore(false)}
+          footer={
+            <>
+              <Button type="submit" form="ads-store-form" className="flex-1" size="lg">
+                저장
+              </Button>
+              <Button type="button" variant="ghost" size="lg" onClick={() => setShowStore(false)}>
+                취소
+              </Button>
+            </>
+          }
+        >
+          <form id="ads-store-form" onSubmit={saveStore} className="space-y-3">
             <Field label="점포명">
-              <TextInput value={storeForm.name} onChange={(e) => setStoreForm({ ...storeForm, name: e.target.value })} required />
+              <TextInput
+                value={storeForm.name}
+                onChange={(e) => setStoreForm({ ...storeForm, name: e.target.value })}
+                required
+              />
             </Field>
             <Field label="플랫폼">
               <TextSelect
@@ -395,57 +496,86 @@ export default function AdsReviewsPage() {
                 ))}
               </TextSelect>
             </Field>
-            <Field label="유형">
-              <TextSelect
-                value={storeForm.storeType}
-                onChange={(e) => setStoreForm({ ...storeForm, storeType: e.target.value })}
-              >
-                <option value="OWN">자사</option>
-                <option value="COMPETITOR">경쟁사</option>
-              </TextSelect>
-            </Field>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setShowStore(false)}>
-                취소
-              </Button>
-              <Button type="submit">저장</Button>
-            </div>
+            <AdsChipGroup
+              label="유형"
+              value={storeForm.storeType}
+              onChange={(id) => setStoreForm({ ...storeForm, storeType: id })}
+              options={[
+                { id: "OWN", label: "자사" },
+                { id: "COMPETITOR", label: "경쟁사" },
+              ]}
+            />
           </form>
-        </div>
+        </Modal>
       ) : null}
 
       {showPlatform ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <form onSubmit={savePlatform} className="w-full max-w-md space-y-3 rounded-panel bg-card p-4 shadow-lg">
-            <h3 className="font-semibold">플랫폼 추가</h3>
-            <Field label="이름">
-              <TextInput value={platformForm.name} onChange={(e) => setPlatformForm({ ...platformForm, name: e.target.value })} required />
-            </Field>
-            <Field label="코드">
-              <TextInput value={platformForm.code} onChange={(e) => setPlatformForm({ ...platformForm, code: e.target.value })} required />
-            </Field>
-            <Field label="색상">
-              <TextInput type="color" value={platformForm.colorCode} onChange={(e) => setPlatformForm({ ...platformForm, colorCode: e.target.value })} />
-            </Field>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setShowPlatform(false)}>
+        <Modal
+          title="플랫폼 추가"
+          onClose={() => setShowPlatform(false)}
+          footer={
+            <>
+              <Button type="submit" form="ads-platform-form" className="flex-1" size="lg">
+                저장
+              </Button>
+              <Button type="button" variant="ghost" size="lg" onClick={() => setShowPlatform(false)}>
                 취소
               </Button>
-              <Button type="submit">저장</Button>
-            </div>
+            </>
+          }
+        >
+          <form id="ads-platform-form" onSubmit={savePlatform} className="space-y-3">
+            <Field label="이름">
+              <TextInput
+                value={platformForm.name}
+                onChange={(e) => setPlatformForm({ ...platformForm, name: e.target.value })}
+                required
+              />
+            </Field>
+            <Field label="코드 (영문)">
+              <TextInput
+                value={platformForm.code}
+                onChange={(e) => setPlatformForm({ ...platformForm, code: e.target.value })}
+                required
+              />
+            </Field>
+            <Field label="색상">
+              <TextInput
+                type="color"
+                value={platformForm.colorCode}
+                onChange={(e) => setPlatformForm({ ...platformForm, colorCode: e.target.value })}
+              />
+            </Field>
           </form>
-        </div>
+        </Modal>
       ) : null}
 
       {showBulk ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <form onSubmit={saveBulk} className="max-h-[90vh] w-full max-w-lg space-y-3 overflow-y-auto rounded-panel bg-card p-4 shadow-lg">
-            <h3 className="font-semibold">리뷰 일괄 입력</h3>
+        <Modal
+          title="리뷰수 입력"
+          onClose={() => setShowBulk(false)}
+          footer={
+            <>
+              <Button type="submit" form="ads-bulk-form" className="flex-1" size="lg">
+                저장
+              </Button>
+              <Button type="button" variant="ghost" size="lg" onClick={() => setShowBulk(false)}>
+                취소
+              </Button>
+            </>
+          }
+        >
+          <form id="ads-bulk-form" onSubmit={saveBulk} className="space-y-3">
             <Field label="날짜">
-              <TextInput type="date" value={bulkDate} onChange={(e) => setBulkDate(e.target.value)} required />
+              <TextInput
+                type="date"
+                value={bulkDate}
+                onChange={(e) => setBulkDate(e.target.value)}
+                required
+              />
             </Field>
-            <div className="space-y-2">
-              {stores.map((s) => (
+            <div className="max-h-[50vh] space-y-2 overflow-y-auto pr-1">
+              {bulkStores.map((s) => (
                 <Field key={s.id} label={`${s.name} (${s.platform?.name || s.platformId})`}>
                   <TextInput
                     type="number"
@@ -456,14 +586,9 @@ export default function AdsReviewsPage() {
                 </Field>
               ))}
             </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setShowBulk(false)}>
-                취소
-              </Button>
-              <Button type="submit">저장</Button>
-            </div>
+            <p className="text-xs text-muted">빈 칸은 저장하지 않습니다.</p>
           </form>
-        </div>
+        </Modal>
       ) : null}
     </div>
   );

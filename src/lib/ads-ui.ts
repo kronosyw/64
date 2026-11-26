@@ -32,3 +32,25 @@ export function formatNum(n: number) {
 export function dateKey(value: string | Date) {
   return String(value).slice(0, 10);
 }
+
+/** Compact label for branch switcher buttons. */
+export function shortBranchLabel(name: string) {
+  const n = String(name || "").trim();
+  if (n.includes("송파")) return "송파";
+  if (n.includes("야탑")) return "분당야탑";
+  if (n.includes("분당")) return "분당";
+  return n.length > 10 ? `${n.slice(0, 10)}…` : n;
+}
+
+export function weekendRowClass(dateStr: string) {
+  const day = new Date(`${dateKey(dateStr)}T12:00:00`).getDay();
+  if (day === 0) return "bg-red-50/75";
+  if (day === 6) return "bg-amber-50/75";
+  return "";
+}
+
+export function weekendDayClass(weekday: number) {
+  if (weekday === 0) return "bg-red-50/90";
+  if (weekday === 6) return "bg-amber-50/90";
+  return "";
+}
