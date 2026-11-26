@@ -66,7 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      <main className={`mx-auto px-4 py-6 ${pathname.startsWith("/ads") ? "max-w-[1400px]" : "max-w-6xl"}`}>{children}</main>
     </div>
   );
 }

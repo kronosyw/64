@@ -11,7 +11,9 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "ads:migrate": "tsx scripts/migrate-skadi-ads.ts",
+    "ads:migrate:dry": "tsx scripts/migrate-skadi-ads.ts --dry-run"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
