@@ -1,0 +1,19 @@
+{
+  "exportedAt": "2026-11-26T00:00:00+09:00",
+  "branches": [
+    {"branch_id": 1, "branch_name": "육식사관학교 송파점", "branch_code": "SP"},
+    {"branch_id": 2, "branch_name": "육식사관학교 분당야탑점", "branch_code": "YT"}
+  ],
+  "employees": [
+    {"id": 10, "name": "정래형", "employee_type": "직원", "status": "근무", "branch_id": 1, "branch_name": "육식사관학교 송파점"},
+    {"id": 11, "name": "홍승수", "employee_type": "직원", "status": "근무", "branch_id": 2, "branch_name": "육식사관학교 분당야탑점"},
+    {"id": 12, "name": "김알바", "employee_type": "파트타임", "status": "근무", "branch_id": 1, "branch_name": "육식사관학교 송파점", "phone": "010-0000-0000", "insurance_type": "3.3%"},
+    {"id": 13, "name": "이직원", "employee_type": "직원", "status": "근무", "branch_id": 2, "branch_name": "육식사관학교 분당야탑점", "insurance_type": "4대보험"},
+    {"id": 14, "name": "퇴사자", "employee_type": "직원", "status": "퇴사", "branch_id": 1, "branch_name": "육식사관학교 송파점"}
+  ],
+  "schedules": [
+    {"id": 1, "branch_id": 1, "employee_id": 12, "employee_name": "김알바", "work_type": "저녁PT", "work_date": "2026-11-20", "start_time": "17:30:00", "end_time": "22:30:00", "work_hours": 5},
+    {"id": 2, "branch_id": 2, "employee_id": 13, "employee_name": "이직원", "work_type": "오픈", "work_date": "2026-11-20", "start_time": "10:00:00", "end_time": "21:00:00", "work_hours": 11},
+    {"id": 3, "branch_id": 1, "employee_id": 10, "employee_name": "정래형", "work_type": "오픈마감", "work_date": "2026-11-20", "start_time": "10:00:00", "end_time": "22:30:00", "work_hours": 12}
+  ]
+}

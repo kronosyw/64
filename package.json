@@ -14,7 +14,9 @@
     "postinstall": "prisma generate",
     "ads:migrate": "tsx scripts/migrate-skadi-ads.ts",
     "ads:migrate:dry": "tsx scripts/migrate-skadi-ads.ts --dry-run",
-    "branches:merge-dupes": "tsx scripts/merge-duplicate-branches.ts"
+    "branches:merge-dupes": "tsx scripts/merge-duplicate-branches.ts",
+    "emp:migrate": "tsx scripts/migrate-skadi-employees-schedules.ts",
+    "emp:migrate:dry": "tsx scripts/migrate-skadi-employees-schedules.ts --dry-run"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
