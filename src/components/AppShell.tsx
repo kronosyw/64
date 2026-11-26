@@ -8,17 +8,54 @@ import { BrandMark } from "@/components/BrandMark";
 import { roleLabel } from "@/lib/roles";
 import { SignOutButton } from "@/components/SignOutButton";
 
-const LINKS = [
-  { href: "/", label: "일정", roles: ["SUPERADMIN", "OWNER", "MANAGER", "STAFF", "PARTTIME"] },
-  { href: "/board", label: "게시판", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
-  { href: "/attendance", label: "근태", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
-  { href: "/employees", label: "직원", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
-  { href: "/payroll", label: "급여", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
-  { href: "/statistics", label: "통계", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
-  { href: "/ads", label: "광고", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
-  { href: "/vault", label: "정보저장", roles: ["SUPERADMIN", "OWNER"] },
-  { href: "/branches", label: "지점", roles: ["SUPERADMIN", "OWNER"] },
-  { href: "/settings", label: "설정", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
+type NavLink = {
+  href: string;
+  label: string;
+  roles: string[];
+};
+
+type NavGroup = {
+  id: string;
+  label: string;
+  links: NavLink[];
+};
+
+/** 업무 흐름 기준 그룹: 운영 → 인력 → 성과 → 관리 */
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "ops",
+    label: "운영",
+    links: [
+      { href: "/", label: "일정", roles: ["SUPERADMIN", "OWNER", "MANAGER", "STAFF", "PARTTIME"] },
+      { href: "/board", label: "게시판", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
+    ],
+  },
+  {
+    id: "hr",
+    label: "인력",
+    links: [
+      { href: "/attendance", label: "근태", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
+      { href: "/employees", label: "직원", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
+      { href: "/payroll", label: "급여", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
+    ],
+  },
+  {
+    id: "growth",
+    label: "성과",
+    links: [
+      { href: "/statistics", label: "통계", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
+      { href: "/ads", label: "광고", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
+    ],
+  },
+  {
+    id: "admin",
+    label: "관리",
+    links: [
+      { href: "/vault", label: "자료실", roles: ["SUPERADMIN", "OWNER"] },
+      { href: "/branches", label: "지점", roles: ["SUPERADMIN", "OWNER"] },
+      { href: "/settings", label: "설정", roles: ["SUPERADMIN", "OWNER", "MANAGER"] },
+    ],
+  },
 ];
 
 function isActivePath(pathname: string, href: string) {
@@ -26,31 +63,64 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavLinks({
-  links,
+function filterGroups(role: string): NavGroup[] {
+  return NAV_GROUPS.map((group) => ({
+    ...group,
+    links: group.links.filter((link) => !role || link.roles.includes(role)),
+  })).filter((group) => group.links.length > 0);
+}
+
+function currentPageLabel(pathname: string, groups: NavGroup[]) {
+  for (const group of groups) {
+    for (const link of group.links) {
+      if (isActivePath(pathname, link.href)) return link.label;
+    }
+  }
+  return "메뉴";
+}
+
+function NavMenu({
+  groups,
   pathname,
   onNavigate,
 }: {
-  links: typeof LINKS;
+  groups: NavGroup[];
   pathname: string;
   onNavigate?: () => void;
 }) {
+  const showLabels = groups.length > 1 || (groups[0]?.links.length ?? 0) > 1;
+
   return (
-    <nav className="flex flex-col gap-0.5 px-2" aria-label="주요 메뉴">
-      {links.map((link) => {
-        const active = isActivePath(pathname, link.href);
-        return (
-          <Link
-            key={link.href}
-            href={link.href}
-            onClick={onNavigate}
-            className={`nav-side ${active ? "nav-side-active" : "nav-side-idle"}`}
-            aria-current={active ? "page" : undefined}
+    <nav className="flex flex-col gap-0" aria-label="주요 메뉴">
+      {groups.map((group) => (
+        <div key={group.id} className="nav-group">
+          {showLabels ? (
+            <p className="nav-group-label" id={`nav-group-${group.id}`}>
+              {group.label}
+            </p>
+          ) : null}
+          <div
+            className="flex flex-col gap-0.5"
+            role="group"
+            aria-labelledby={showLabels ? `nav-group-${group.id}` : undefined}
           >
-            {link.label}
-          </Link>
-        );
-      })}
+            {group.links.map((link) => {
+              const active = isActivePath(pathname, link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={onNavigate}
+                  className={`nav-side ${active ? "nav-side-active" : "nav-side-idle"}`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </nav>
   );
 }
@@ -86,7 +156,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data } = useSession();
   const role = data?.user?.role ?? "";
   const name = data?.user?.name ?? "";
-  const links = LINKS.filter((link) => !role || link.roles.includes(role));
+  const groups = filterGroups(role);
+  const pageLabel = currentPageLabel(pathname, groups);
   const [menuOpen, setMenuOpen] = useState(false);
   const titleId = useId();
   const isAds = pathname.startsWith("/ads");
@@ -111,24 +182,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen text-foreground md:flex">
-      {/* Desktop sidebar */}
       <aside className="app-sidebar no-print sticky top-0 hidden h-screen w-60 shrink-0 md:flex">
         <SidebarBrand />
-        <div className="flex-1 overflow-y-auto py-1">
-          <NavLinks links={links} pathname={pathname} />
+        <div className="flex-1 overflow-y-auto py-1 pb-3">
+          <NavMenu groups={groups} pathname={pathname} />
         </div>
         <SidebarFooter name={name} role={role} />
       </aside>
 
-      {/* Mobile top bar */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="app-topbar no-print md:hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="flex min-w-0 items-center gap-2.5">
               <BrandMark size={32} />
-              <Link href="/" className="truncate text-base font-bold tracking-tight text-foreground">
-                잉잉관리자
-              </Link>
+              <div className="min-w-0">
+                <Link href="/" className="block truncate text-base font-bold tracking-tight text-foreground">
+                  잉잉관리자
+                </Link>
+                <p className="truncate text-xs text-muted">{pageLabel}</p>
+              </div>
             </div>
             <button
               type="button"
@@ -145,7 +217,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* Mobile drawer */}
         {menuOpen ? (
           <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-labelledby={titleId}>
             <button
@@ -173,8 +244,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </svg>
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto py-2">
-                <NavLinks links={links} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
+              <div className="flex-1 overflow-y-auto py-3">
+                <NavMenu groups={groups} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
               </div>
               <SidebarFooter name={name} role={role} />
             </div>

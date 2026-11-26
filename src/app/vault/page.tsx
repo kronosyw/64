@@ -174,8 +174,8 @@ export default function VaultPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="정보저장"
-        description="사장님만 사용합니다. 같은 지점 사장끼리 공유되고, 최고관리자는 전체를 봅니다."
+        title="자료실"
+        description="지점 문서를 모아 둡니다. 같은 지점 사장끼리 공유되고, 최고관리자는 전체를 봅니다."
         actions={
           <Button type="button" onClick={openCreate} disabled={!branches.length}>
             항목 추가
@@ -279,7 +279,7 @@ export default function VaultPage() {
 
       {draft ? (
         <Modal
-          title={draft.id ? "정보 수정" : "정보 추가"}
+          title={draft.id ? "자료 수정" : "자료 추가"}
           onClose={() => setDraft(null)}
           footer={
             <>
