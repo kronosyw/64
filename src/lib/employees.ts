@@ -92,8 +92,8 @@ export async function createEmployeeAccount(input: CreateEmployeeInput) {
   if (role === Role.SUPERADMIN) {
     // no branch
   } else if (role === Role.OWNER) {
-    if (actorRole !== Role.OWNER && actorRole !== Role.SUPERADMIN) {
-      throw new Error("사장은 사장 또는 최고관리자만 등록할 수 있습니다.");
+    if (actorRole !== Role.SUPERADMIN) {
+      throw new Error("사장은 최고관리자만 등록할 수 있습니다.");
     }
     if (!ownerBranchIds.length) throw new Error("사장 지점을 1개 이상 배정하세요.");
     if (!unrestricted) {
@@ -180,16 +180,44 @@ export async function updateOwnerBranches(employeeId: number, branchIds: number[
   ]);
 }
 
-export function employeeListWhere(actorRole: Role, actorBranchIds: number[]): Prisma.EmployeeWhereInput {
-  if (actorRole === Role.SUPERADMIN) return {};
-  if (actorRole === Role.OWNER) {
+/**
+ * 직원 목록: 본인 + 하위 등급만 (동급·상위 숨김).
+ * 사장끼리 상호 비공개, 최고관리자는 다른 최고관리자 비공개.
+ */
+export function employeeListWhere(
+  actorRole: Role,
+  actorBranchIds: number[],
+  actorId: number,
+): Prisma.EmployeeWhereInput {
+  if (actorRole === Role.SUPERADMIN) {
     return {
-      role: { not: Role.SUPERADMIN },
-      OR: [{ role: Role.OWNER }, { branchId: { in: actorBranchIds } }],
+      OR: [
+        { id: actorId },
+        { role: { in: [Role.OWNER, Role.MANAGER, Role.STAFF, Role.PARTTIME] } },
+      ],
     };
   }
+
+  if (actorRole === Role.OWNER) {
+    return {
+      OR: [
+        { id: actorId },
+        {
+          role: { in: [Role.MANAGER, Role.STAFF, Role.PARTTIME] },
+          branchId: { in: actorBranchIds },
+        },
+      ],
+    };
+  }
+
+  // MANAGER 등: 본인 + 지점 내 직원·파트만
   return {
-    branchId: { in: actorBranchIds },
-    role: { in: [Role.STAFF, Role.PARTTIME, Role.MANAGER] },
+    OR: [
+      { id: actorId },
+      {
+        branchId: { in: actorBranchIds },
+        role: { in: [Role.STAFF, Role.PARTTIME] },
+      },
+    ],
   };
 }

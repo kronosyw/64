@@ -576,8 +576,10 @@ export default function EmployeesPage() {
                   }}
                 >
                   {actorRole === "SUPERADMIN" ? <option value="SUPERADMIN">최고관리자</option> : null}
-                  <option value="OWNER">사장</option>
-                  <option value="MANAGER">지점장</option>
+                  {actorRole === "SUPERADMIN" ? <option value="OWNER">사장</option> : null}
+                  {actorRole === "SUPERADMIN" || actorRole === "OWNER" ? (
+                    <option value="MANAGER">지점장</option>
+                  ) : null}
                   <option value="STAFF">직원</option>
                   <option value="PARTTIME">파트타임</option>
                 </TextSelect>

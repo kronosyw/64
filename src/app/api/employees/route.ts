@@ -9,20 +9,24 @@ import { canManageEmployeeAccount, roleLabel } from "@/lib/roles";
 export async function GET(req: NextRequest) {
   try {
     const session = await requireApiOps();
+    const actorId = Number(session.user.id);
     const branchId = req.nextUrl.searchParams.get("branchId");
-    const where = employeeListWhere(session.user.role, session.user.branchIds);
+    let where = employeeListWhere(session.user.role, session.user.branchIds, actorId);
     if (branchId) {
       const id = Number(branchId);
       if (!session.user.branchIds.includes(id)) return jsonError("지점 권한 없음", 403);
-      Object.assign(where, {
-        OR: undefined,
+      where = {
         AND: [
-          employeeListWhere(session.user.role, session.user.branchIds),
+          employeeListWhere(session.user.role, session.user.branchIds, actorId),
           {
-            OR: [{ branchId: id }, { role: Role.OWNER, ownerBranches: { some: { branchId: id } } }],
+            OR: [
+              { id: actorId },
+              { branchId: id },
+              { role: Role.OWNER, ownerBranches: { some: { branchId: id } } },
+            ],
           },
         ],
-      });
+      };
     }
 
     const employees = await prisma.employee.findMany({
@@ -115,32 +119,25 @@ export async function PATCH(req: NextRequest) {
     });
     if (!target) return jsonError("직원을 찾을 수 없습니다.", 404);
 
-    if (!canManageEmployeeAccount(session.user.role, target.role)) {
+    const isSelf = Number(session.user.id) === target.id;
+    if (!isSelf && !canManageEmployeeAccount(session.user.role, target.role)) {
       return jsonError("권한이 없습니다.", 403);
     }
 
-    if (session.user.role === Role.MANAGER) {
+    if (!isSelf && session.user.role === Role.MANAGER) {
       if (!target.branchId || !session.user.branchIds.includes(target.branchId)) {
         return jsonError("권한이 없습니다.", 403);
       }
     }
 
-    if (session.user.role === Role.OWNER && target.role !== Role.OWNER) {
+    if (!isSelf && session.user.role === Role.OWNER) {
       if (!target.branchId || !session.user.branchIds.includes(target.branchId)) {
         return jsonError("권한이 없습니다.", 403);
       }
     }
 
-    if (session.user.role === Role.OWNER && target.role === Role.OWNER) {
-      if (String(target.id) !== session.user.id) {
-        const shared = await prisma.employeeBranch.findFirst({
-          where: {
-            employeeId: target.id,
-            branchId: { in: session.user.branchIds },
-          },
-        });
-        if (!shared) return jsonError("권한이 없습니다.", 403);
-      }
+    if (isSelf && body.status !== undefined && body.status !== target.status) {
+      return jsonError("본인 계정 상태는 변경할 수 없습니다.", 403);
     }
 
     const data: Record<string, unknown> = {};
@@ -249,24 +246,10 @@ export async function DELETE(req: NextRequest) {
       return jsonError("사장 이하 계정만 삭제할 수 있습니다.", 403);
     }
 
-    if (session.user.role === Role.MANAGER) {
+    if (session.user.role === Role.MANAGER || session.user.role === Role.OWNER) {
       if (!target.branchId || !session.user.branchIds.includes(target.branchId)) {
         return jsonError("권한이 없습니다.", 403);
       }
-    }
-    if (session.user.role === Role.OWNER && target.role !== Role.OWNER) {
-      if (!target.branchId || !session.user.branchIds.includes(target.branchId)) {
-        return jsonError("권한이 없습니다.", 403);
-      }
-    }
-    if (session.user.role === Role.OWNER && target.role === Role.OWNER) {
-      const peer = await prisma.employeeBranch.findFirst({
-        where: {
-          employeeId: target.id,
-          branchId: { in: session.user.branchIds },
-        },
-      });
-      if (!peer) return jsonError("권한이 없습니다.", 403);
     }
 
     await prisma.employee.delete({ where: { id } });

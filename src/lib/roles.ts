@@ -8,6 +8,22 @@ export const ROLE_LABEL = {
 
 export type AppRole = keyof typeof ROLE_LABEL;
 
+/** Lower number = higher authority. */
+export const ROLE_RANK: Record<AppRole, number> = {
+  SUPERADMIN: 0,
+  OWNER: 1,
+  MANAGER: 2,
+  STAFF: 3,
+  PARTTIME: 4,
+};
+
+/** Roles strictly below the actor (peers/superiors excluded). */
+export function subordinateRoles(actorRole: string): AppRole[] {
+  const rank = ROLE_RANK[actorRole as AppRole];
+  if (rank === undefined) return [];
+  return (Object.keys(ROLE_RANK) as AppRole[]).filter((role) => ROLE_RANK[role] > rank);
+}
+
 export const WORK_TYPE_LABEL = {
   OPEN: "오픈",
   CLOSE: "마감",
@@ -61,10 +77,13 @@ export function isOwnerOrBelow(role: string) {
   return role === "OWNER" || role === "MANAGER" || role === "STAFF" || role === "PARTTIME";
 }
 
-/** Whether actor may change status/delete this employee. */
+/** Whether actor may change status/delete this employee (본인·동급·상위 제외, 하위만). */
 export function canManageEmployeeAccount(actorRole: string, targetRole: string) {
-  if (targetRole === "SUPERADMIN") return actorRole === "SUPERADMIN";
-  if (!isOwnerOrBelow(targetRole)) return false;
+  const actorRank = ROLE_RANK[actorRole as AppRole];
+  const targetRank = ROLE_RANK[targetRole as AppRole];
+  if (actorRank === undefined || targetRank === undefined) return false;
+  // 동급(사장끼리 등)·상위는 관리 불가
+  if (targetRank <= actorRank) return false;
   if (actorRole === "SUPERADMIN" || actorRole === "OWNER") return true;
   if (actorRole === "MANAGER") {
     return targetRole === "STAFF" || targetRole === "PARTTIME";
