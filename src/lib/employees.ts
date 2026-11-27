@@ -181,8 +181,8 @@ export async function updateOwnerBranches(employeeId: number, branchIds: number[
 }
 
 /**
- * 직원 목록: 본인 + 하위 등급만 (동급·상위 숨김).
- * 사장끼리 상호 비공개, 최고관리자는 다른 최고관리자 비공개.
+ * 직원 목록: 본인 + 하위 등급 (+ 같은 지점 사장).
+ * 다른 지점 사장·최고관리자(동급 최고관리자)는 숨김.
  */
 export function employeeListWhere(
   actorRole: Role,
@@ -202,6 +202,10 @@ export function employeeListWhere(
     return {
       OR: [
         { id: actorId },
+        {
+          role: Role.OWNER,
+          ownerBranches: { some: { branchId: { in: actorBranchIds } } },
+        },
         {
           role: { in: [Role.MANAGER, Role.STAFF, Role.PARTTIME] },
           branchId: { in: actorBranchIds },

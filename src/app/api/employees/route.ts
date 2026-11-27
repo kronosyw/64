@@ -120,7 +120,14 @@ export async function PATCH(req: NextRequest) {
     if (!target) return jsonError("직원을 찾을 수 없습니다.", 404);
 
     const isSelf = Number(session.user.id) === target.id;
-    if (!isSelf && !canManageEmployeeAccount(session.user.role, target.role)) {
+    const canManage = canManageEmployeeAccount(session.user.role, target.role);
+    const isSameBranchPeerOwner =
+      !isSelf &&
+      session.user.role === Role.OWNER &&
+      target.role === Role.OWNER &&
+      target.ownerBranches.some((row) => session.user.branchIds.includes(row.branchId));
+
+    if (!isSelf && !canManage && !isSameBranchPeerOwner) {
       return jsonError("권한이 없습니다.", 403);
     }
 
@@ -130,7 +137,7 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    if (!isSelf && session.user.role === Role.OWNER) {
+    if (!isSelf && session.user.role === Role.OWNER && target.role !== Role.OWNER) {
       if (!target.branchId || !session.user.branchIds.includes(target.branchId)) {
         return jsonError("권한이 없습니다.", 403);
       }
@@ -138,6 +145,11 @@ export async function PATCH(req: NextRequest) {
 
     if (isSelf && body.status !== undefined && body.status !== target.status) {
       return jsonError("본인 계정 상태는 변경할 수 없습니다.", 403);
+    }
+
+    // 같은 지점 사장은 조회·기본 수정만 (활성/비활성·상태 변경은 하위만)
+    if (isSameBranchPeerOwner && body.status !== undefined && body.status !== target.status) {
+      return jsonError("같은 지점 사장의 상태는 변경할 수 없습니다.", 403);
     }
 
     const data: Record<string, unknown> = {};
