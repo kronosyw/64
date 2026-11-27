@@ -229,6 +229,7 @@ async function main() {
               storeType,
               address: s.address || null,
               notes: s.notes || null,
+              sortOrder: Number(s.sort_order || 0),
               isActive: s.is_active === undefined ? true : Boolean(s.is_active),
             },
           })
@@ -240,6 +241,7 @@ async function main() {
               storeType,
               address: s.address || null,
               notes: s.notes || null,
+              sortOrder: Number(s.sort_order || 0),
               isActive: s.is_active === undefined ? true : Boolean(s.is_active),
             },
           });

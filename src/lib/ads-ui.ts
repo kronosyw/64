@@ -5,6 +5,7 @@ export type AdsStore = {
   name: string;
   platformId: number;
   storeType: "OWN" | "COMPETITOR";
+  sortOrder?: number;
   platform?: AdsPlatform;
 };
 

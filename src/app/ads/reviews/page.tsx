@@ -15,6 +15,7 @@ import {
   TextInput,
   TextSelect,
 } from "@/components/ui";
+import { filterAdsBranches } from "@/lib/ad-stores";
 import {
   AdsBranch,
   AdsPlatform,
@@ -45,7 +46,7 @@ export default function AdsReviewsPage() {
   const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [showStore, setShowStore] = useState(false);
+  const [showStoreManage, setShowStoreManage] = useState(false);
   const [showPlatform, setShowPlatform] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [storeForm, setStoreForm] = useState({ name: "", platformId: "", storeType: "OWN" });
@@ -71,8 +72,9 @@ export default function AdsReviewsPage() {
     const bData = await bRes.json();
     const pData = await pRes.json();
     if (bData.success && bData.branches?.length) {
-      setBranches(bData.branches);
-      setBranchId((prev) => prev ?? bData.branches[0].id);
+      const list = filterAdsBranches(bData.branches as AdsBranch[]);
+      setBranches(list);
+      setBranchId((prev) => (prev != null && list.some((b) => b.id === prev) ? prev : list[0]?.id ?? null));
     }
     if (pData.success) {
       setPlatforms(pData.platforms || []);
@@ -125,6 +127,9 @@ export default function AdsReviewsPage() {
       })
       .sort((a, b) => {
         if (a.storeType !== b.storeType) return a.storeType === "OWN" ? -1 : 1;
+        const oa = a.sortOrder ?? 0;
+        const ob = b.sortOrder ?? 0;
+        if (oa !== ob) return oa - ob;
         return a.name.localeCompare(b.name, "ko");
       });
   }, [stores, platformFilter, typeFilter]);
@@ -194,10 +199,18 @@ export default function AdsReviewsPage() {
     const data = await res.json();
     setMessage(data.success ? "점포를 저장했습니다." : data.message || "실패");
     if (data.success) {
-      setShowStore(false);
       setStoreForm((f) => ({ ...f, name: "" }));
       loadReviews(branchId, year, month);
     }
+  }
+
+  async function deleteStore(store: AdsStore) {
+    if (!branchId) return;
+    if (!window.confirm(`"${store.name}" 점포를 삭제할까요?`)) return;
+    const res = await fetch(`/api/ads?type=store&id=${store.id}`, { method: "DELETE" });
+    const data = await res.json();
+    setMessage(data.success ? "점포를 삭제했습니다." : data.message || "삭제 실패");
+    if (data.success) loadReviews(branchId, year, month);
   }
 
   async function savePlatform(e: FormEvent) {
@@ -214,6 +227,21 @@ export default function AdsReviewsPage() {
       setPlatformForm({ name: "", code: "", colorCode: "#3B82F6" });
       loadMeta();
     }
+  }
+
+  async function reorderStore(storeId: number, direction: "up" | "down") {
+    if (!branchId) return;
+    const res = await fetch("/api/ads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "reorder_store", branchId, storeId, direction }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      setMessage(data.message || "순서 변경 실패");
+      return;
+    }
+    setStores(data.stores || []);
   }
 
   async function saveBulk(e: FormEvent) {
@@ -238,6 +266,26 @@ export default function AdsReviewsPage() {
   const bulkStores = useMemo(() => {
     return filteredStores.length ? filteredStores : stores;
   }, [filteredStores, stores]);
+
+  const storesByPlatform = useMemo(() => {
+    const groups = new Map<number, AdsStore[]>();
+    for (const s of stores) {
+      const list = groups.get(s.platformId) || [];
+      list.push(s);
+      groups.set(s.platformId, list);
+    }
+    for (const [pid, list] of groups) {
+      list.sort((a, b) => {
+        if (a.storeType !== b.storeType) return a.storeType === "OWN" ? -1 : 1;
+        const oa = a.sortOrder ?? 0;
+        const ob = b.sortOrder ?? 0;
+        if (oa !== ob) return oa - ob;
+        return a.name.localeCompare(b.name, "ko");
+      });
+      groups.set(pid, list);
+    }
+    return groups;
+  }, [stores]);
 
   return (
     <div className="space-y-4">
@@ -329,8 +377,8 @@ export default function AdsReviewsPage() {
             리뷰수 입력
           </Button>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="ghost" onClick={() => setShowStore(true)}>
-              점포추가
+            <Button type="button" size="sm" variant="ghost" onClick={() => setShowStoreManage(true)}>
+              점포 관리
             </Button>
             <Button type="button" size="sm" variant="ghost" onClick={() => setShowPlatform(true)}>
               플랫폼추가
@@ -354,8 +402,8 @@ export default function AdsReviewsPage() {
       {!loading && stores.length === 0 ? (
         <EmptyState>
           <p className="mb-3">등록된 점포가 없습니다.</p>
-          <Button type="button" onClick={() => setShowStore(true)}>
-            첫 점포 추가
+          <Button type="button" onClick={() => setShowStoreManage(true)}>
+            점포 관리
           </Button>
         </EmptyState>
       ) : null}
@@ -410,7 +458,9 @@ export default function AdsReviewsPage() {
                         <td
                           className={`sticky left-0 z-10 px-3 py-1.5 font-medium whitespace-nowrap shadow-[2px_0_0_rgba(12,35,64,0.06)] ${rowBg}`}
                         >
-                          {store.name}
+                          <span className="truncate" title={store.name}>
+                            {store.name}
+                          </span>
                           <span
                             className={`ml-1.5 inline-flex rounded-full px-1.5 py-0.5 text-[10px] ${
                               store.storeType === "OWN"
@@ -457,22 +507,79 @@ export default function AdsReviewsPage() {
         );
       })}
 
-      {showStore ? (
+      {showStoreManage ? (
         <Modal
-          title="점포 추가"
-          onClose={() => setShowStore(false)}
+          title="점포 관리"
+          onClose={() => setShowStoreManage(false)}
           footer={
-            <>
-              <Button type="submit" form="ads-store-form" className="flex-1" size="lg">
-                저장
-              </Button>
-              <Button type="button" variant="ghost" size="lg" onClick={() => setShowStore(false)}>
-                취소
-              </Button>
-            </>
+            <Button type="button" variant="ghost" size="lg" className="w-full" onClick={() => setShowStoreManage(false)}>
+              닫기
+            </Button>
           }
         >
-          <form id="ads-store-form" onSubmit={saveStore} className="space-y-3">
+          <div className="max-h-[min(60vh,28rem)] space-y-4 overflow-y-auto pr-1">
+            {[...storesByPlatform.entries()].length === 0 ? (
+              <p className="text-sm text-muted">등록된 점포가 없습니다. 아래에서 추가하세요.</p>
+            ) : (
+              [...storesByPlatform.entries()].map(([platformId, list]) => {
+                const platform = platforms.find((p) => p.id === platformId);
+                return (
+                  <div key={platformId} className="rounded-btn border border-line bg-paper/40">
+                    <div className="flex items-center gap-2 border-b border-line px-3 py-2">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: platform?.colorCode || "#1a56db" }}
+                      />
+                      <span className="text-sm font-semibold text-foreground">{platform?.name || "플랫폼"}</span>
+                    </div>
+                    <ul className="divide-y divide-line/80">
+                      {list.map((store, rowIdx) => (
+                        <li key={store.id} className="flex items-center gap-2 px-3 py-2">
+                          <div className="flex shrink-0 flex-col gap-0.5">
+                            <button
+                              type="button"
+                              disabled={rowIdx === 0}
+                              aria-label="위로"
+                              onClick={() => reorderStore(store.id, "up")}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded border border-line bg-card text-[10px] text-muted hover:bg-paper disabled:opacity-30"
+                            >
+                              ▲
+                            </button>
+                            <button
+                              type="button"
+                              disabled={rowIdx === list.length - 1}
+                              aria-label="아래로"
+                              onClick={() => reorderStore(store.id, "down")}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded border border-line bg-card text-[10px] text-muted hover:bg-paper disabled:opacity-30"
+                            >
+                              ▼
+                            </button>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium" title={store.name}>
+                              {store.name}
+                            </p>
+                            <p className="text-xs text-muted">{store.storeType === "OWN" ? "자사" : "경쟁사"}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="danger"
+                            size="sm"
+                            onClick={() => deleteStore(store)}
+                          >
+                            삭제
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <p className="mt-4 text-sm font-medium text-foreground">점포 추가</p>
+          <form id="ads-store-form" onSubmit={saveStore} className="mt-2 space-y-3 rounded-btn border border-line bg-card p-3">
             <Field label="점포명">
               <TextInput
                 value={storeForm.name}
@@ -502,6 +609,9 @@ export default function AdsReviewsPage() {
                 { id: "COMPETITOR", label: "경쟁사" },
               ]}
             />
+            <Button type="submit" className="w-full">
+              추가
+            </Button>
           </form>
         </Modal>
       ) : null}

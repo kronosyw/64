@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureBranch, jsonError, jsonOk, parseBranchId, requireApiOps } from "@/lib/api";
 import { calcAdMetrics, summarizeCosts } from "@/lib/ads";
+import { adStoreListOrder, mergeDuplicateOwnStores, normalizeStoreSortOrders } from "@/lib/ad-stores";
 
 function monthRange(year: number, month: number) {
   const start = new Date(Date.UTC(year, month - 1, 1));
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest) {
     if (!branchId) return jsonError("지점 없음", 403);
 
     if (type === "stores") {
+      await mergeDuplicateOwnStores(branchId);
       const storeType = req.nextUrl.searchParams.get("storeType");
       const stores = await prisma.adStore.findMany({
         where: {
@@ -37,7 +39,7 @@ export async function GET(req: NextRequest) {
           ...(storeType === "OWN" || storeType === "COMPETITOR" ? { storeType } : {}),
         },
         include: { platform: true },
-        orderBy: [{ storeType: "asc" }, { name: "asc" }],
+        orderBy: adStoreListOrder,
       });
       return jsonOk({ stores });
     }
@@ -76,10 +78,11 @@ export async function GET(req: NextRequest) {
     }
 
     if (type === "reviews") {
+      await mergeDuplicateOwnStores(branchId);
       const stores = await prisma.adStore.findMany({
         where: { branchId, isActive: true },
         include: { platform: true },
-        orderBy: [{ storeType: "asc" }, { name: "asc" }],
+        orderBy: adStoreListOrder,
       });
       const reviews = await prisma.adReview.findMany({
         where: {
@@ -378,8 +381,50 @@ export async function POST(req: NextRequest) {
         });
         return jsonOk({ store });
       }
-      const store = await prisma.adStore.create({ data: payload });
+      const maxSort = await prisma.adStore.aggregate({
+        where: { branchId, platformId: payload.platformId },
+        _max: { sortOrder: true },
+      });
+      const store = await prisma.adStore.create({
+        data: { ...payload, sortOrder: (maxSort._max.sortOrder ?? 0) + 10 },
+      });
       return jsonOk({ store }, 201);
+    }
+
+    if (action === "reorder_store") {
+      const branchId = Number(body.branchId);
+      const storeId = Number(body.storeId);
+      const direction = body.direction === "down" ? "down" : "up";
+      ensureBranch(session.user.branchIds, branchId);
+      const current = await prisma.adStore.findUnique({ where: { id: storeId } });
+      if (!current || current.branchId !== branchId) return jsonError("점포 없음", 404);
+
+      await normalizeStoreSortOrders(branchId, current.platformId);
+
+      const peers = await prisma.adStore.findMany({
+        where: { branchId, platformId: current.platformId, isActive: true },
+        orderBy: adStoreListOrder,
+      });
+      const idx = peers.findIndex((s) => s.id === storeId);
+      if (idx < 0) return jsonError("점포 없음", 404);
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= peers.length) return jsonOk({ stores: peers });
+
+      const a = peers[idx];
+      const b = peers[swapIdx];
+      const aOrder = a.sortOrder;
+      const bOrder = b.sortOrder;
+      await prisma.$transaction([
+        prisma.adStore.update({ where: { id: a.id }, data: { sortOrder: bOrder } }),
+        prisma.adStore.update({ where: { id: b.id }, data: { sortOrder: aOrder } }),
+      ]);
+
+      const stores = await prisma.adStore.findMany({
+        where: { branchId, isActive: true },
+        include: { platform: true },
+        orderBy: adStoreListOrder,
+      });
+      return jsonOk({ stores });
     }
 
     if (action === "cost") {

@@ -15,6 +15,7 @@ import {
   TextInput,
 } from "@/components/ui";
 import { calcAdMetrics } from "@/lib/ads";
+import { filterAdsBranches } from "@/lib/ad-stores";
 import {
   AdsBranch,
   AdsPlatform,
@@ -104,8 +105,9 @@ export default function AdsCostsPage() {
     const bData = await bRes.json();
     const pData = await pRes.json();
     if (bData.success && bData.branches?.length) {
-      setBranches(bData.branches);
-      setBranchId((prev) => prev ?? bData.branches[0].id);
+      const list = filterAdsBranches(bData.branches as AdsBranch[]);
+      setBranches(list);
+      setBranchId((prev) => (prev != null && list.some((b) => b.id === prev) ? prev : list[0]?.id ?? null));
     }
     if (pData.success) setPlatforms(pData.platforms || []);
   }
