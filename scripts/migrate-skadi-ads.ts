@@ -43,6 +43,7 @@ type Dump = {
     store_type: string;
     address?: string | null;
     notes?: string | null;
+    sort_order?: number;
     is_active?: number | boolean;
   }>;
   reviews: Array<{
