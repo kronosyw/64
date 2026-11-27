@@ -554,12 +554,12 @@ export function ScheduleBoard({
                 className="flex w-full gap-3 rounded-panel border border-line bg-paper/40 px-3 py-3 text-left transition-colors hover:bg-paper"
                 style={{ borderLeft: `4px solid ${colorOf(schedule, shifts)}` }}
               >
-                <div className="w-16 shrink-0 text-sm text-muted">
+                <div className="w-[4.5rem] shrink-0 text-sm tabular-nums text-muted">
                   {schedule.startTime ? (
-                    <>
-                      <div>{schedule.startTime}</div>
-                      <div>{schedule.endTime}</div>
-                    </>
+                    <div>
+                      {schedule.startTime}
+                      {schedule.endTime ? `–${schedule.endTime}` : ""}
+                    </div>
                   ) : (
                     <div>종일</div>
                   )}
@@ -610,11 +610,18 @@ export function ScheduleBoard({
                         key={schedule.id}
                         type="button"
                         onClick={() => openEdit(schedule)}
-                        className="block w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium"
+                        className="block w-full rounded px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight"
                         style={{ backgroundColor: `${colorOf(schedule, shifts)}22`, color: colorOf(schedule, shifts) }}
                       >
-                        {schedule.startTime ? `${schedule.startTime} ` : ""}
-                        {schedule.employeeName} {labelOf(schedule)}
+                        {schedule.startTime ? (
+                          <span className="block tabular-nums opacity-90">
+                            {schedule.startTime}
+                            {schedule.endTime ? `–${schedule.endTime}` : ""}
+                          </span>
+                        ) : null}
+                        <span className="block truncate">
+                          {schedule.employeeName} {labelOf(schedule)}
+                        </span>
                       </button>
                     ))}
                   </div>
