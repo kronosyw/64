@@ -8,6 +8,12 @@ import { Button, Field, Message, TextInput } from "@/components/ui";
 
 type Branch = { id: number; name: string };
 
+function branchShortLabel(name: string) {
+  if (name.includes("송파")) return "송파점";
+  if (name.includes("야탑") || name.includes("분당")) return "분당야탑점";
+  return name.replace(/^육식사관학교\s*/, "").trim() || name;
+}
+
 export function StaffLoginForm() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState("");
@@ -69,17 +75,25 @@ export function StaffLoginForm() {
 
         <form onSubmit={onSubmit} className="space-y-4 px-6 pb-8 pt-5">
           <Field label="지점">
-            <div className="flex flex-wrap gap-1">
+            <div
+              className="grid gap-1 rounded-btn border border-line bg-paper p-1"
+              style={{ gridTemplateColumns: `repeat(${Math.max(branches.length, 1)}, minmax(0, 1fr))` }}
+              role="group"
+              aria-label="지점 선택"
+            >
               {branches.map((b) => {
                 const active = String(b.id) === branchId;
                 return (
                   <button
                     key={b.id}
                     type="button"
+                    title={b.name}
                     onClick={() => setBranchId(String(b.id))}
-                    className={`desk-chip ${active ? "desk-chip-active" : "border border-line desk-chip-idle"}`}
+                    className={`min-h-9 truncate rounded-[0.45rem] px-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/80 ${
+                      active ? "bg-ink text-white shadow-sm" : "text-muted hover:bg-card hover:text-foreground"
+                    }`}
                   >
-                    {b.name.includes("송파") ? "송파" : b.name.includes("야탑") ? "분당야탑" : b.name}
+                    {branchShortLabel(b.name)}
                   </button>
                 );
               })}
