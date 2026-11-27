@@ -2,7 +2,12 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureBranch, jsonError, jsonOk, parseBranchId, requireApiOps } from "@/lib/api";
 import { calcAdMetrics, summarizeCosts } from "@/lib/ads";
-import { adStoreListOrder, mergeDuplicateOwnStores, normalizeStoreSortOrders } from "@/lib/ad-stores";
+import {
+  adStoreListOrder,
+  mergeDuplicateOwnStoresIfNeeded,
+  normalizeStoreSortOrders,
+  prevReviewCountByStore,
+} from "@/lib/ad-stores";
 
 function monthRange(year: number, month: number) {
   const start = new Date(Date.UTC(year, month - 1, 1));
@@ -30,7 +35,6 @@ export async function GET(req: NextRequest) {
     if (!branchId) return jsonError("지점 없음", 403);
 
     if (type === "stores") {
-      await mergeDuplicateOwnStores(branchId);
       const storeType = req.nextUrl.searchParams.get("storeType");
       const stores = await prisma.adStore.findMany({
         where: {
@@ -78,32 +82,29 @@ export async function GET(req: NextRequest) {
     }
 
     if (type === "reviews") {
-      await mergeDuplicateOwnStores(branchId);
-      const stores = await prisma.adStore.findMany({
-        where: { branchId, isActive: true },
-        include: { platform: true },
-        orderBy: adStoreListOrder,
-      });
-      const reviews = await prisma.adReview.findMany({
-        where: {
-          store: { branchId },
-          reviewDate: { gte: start, lte: end },
-        },
-        include: { store: true },
-        orderBy: { reviewDate: "asc" },
-      });
-      const prev = await prisma.adReview.findMany({
-        where: {
-          store: { branchId },
-          reviewDate: { lt: start },
-        },
-        orderBy: { reviewDate: "desc" },
-      });
-      const prevByStore = new Map<number, number>();
-      for (const row of prev) {
-        if (!prevByStore.has(row.storeId)) prevByStore.set(row.storeId, row.reviewCount);
-      }
-      return jsonOk({ stores, reviews, prevByStore: Object.fromEntries(prevByStore), year, month });
+      const [, stores, reviews, prevByStore] = await Promise.all([
+        mergeDuplicateOwnStoresIfNeeded(branchId),
+        prisma.adStore.findMany({
+          where: { branchId, isActive: true },
+          include: { platform: true },
+          orderBy: adStoreListOrder,
+        }),
+        prisma.adReview.findMany({
+          where: {
+            store: { branchId },
+            reviewDate: { gte: start, lte: end },
+          },
+          select: {
+            id: true,
+            storeId: true,
+            reviewDate: true,
+            reviewCount: true,
+          },
+          orderBy: { reviewDate: "asc" },
+        }),
+        prevReviewCountByStore(branchId, start),
+      ]);
+      return jsonOk({ stores, reviews, prevByStore, year, month });
     }
 
     if (type === "stats" || type === "review_stats" || type === "ad_stats" || type === "monthly_summary") {

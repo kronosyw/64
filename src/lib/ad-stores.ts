@@ -36,6 +36,42 @@ function pickPreferredOwnStore(stores: AdStore[]) {
   });
 }
 
+/** Latest review count per store strictly before a date (Postgres DISTINCT ON). */
+export async function prevReviewCountByStore(branchId: number, before: Date) {
+  const rows = await prisma.$queryRaw<Array<{ store_id: number; review_count: number }>>`
+    SELECT DISTINCT ON (ar.store_id) ar.store_id, ar.review_count
+    FROM ad_reviews ar
+    INNER JOIN ad_stores s ON s.id = ar.store_id
+    WHERE s.branch_id = ${branchId}
+      AND ar.review_date < ${before}
+    ORDER BY ar.store_id, ar.review_date DESC
+  `;
+  const out: Record<string, number> = {};
+  for (const row of rows) out[String(row.store_id)] = row.review_count;
+  return out;
+}
+
+function duplicateOwnGroups(ownStores: Pick<AdStore, "id" | "platformId" | "name">[]) {
+  const byKey = new Map<string, number[]>();
+  for (const s of ownStores) {
+    const key = `${s.platformId}:${canonicalOwnStoreName(s.name)}`;
+    const ids = byKey.get(key) || [];
+    ids.push(s.id);
+    byKey.set(key, ids);
+  }
+  return [...byKey.values()].filter((ids) => ids.length > 1);
+}
+
+/** Run heavy merge only when duplicate OWN rows exist for the same platform+canonical name. */
+export async function mergeDuplicateOwnStoresIfNeeded(branchId: number) {
+  const ownStores = await prisma.adStore.findMany({
+    where: { branchId, storeType: "OWN" as StoreType, isActive: true },
+    select: { id: true, platformId: true, name: true },
+  });
+  if (!duplicateOwnGroups(ownStores).length) return;
+  await mergeDuplicateOwnStores(branchId);
+}
+
 /** Merge duplicate OWN rows (송파·분당야탑 short names) into canonical store per platform. */
 export async function mergeDuplicateOwnStores(branchId: number) {
   const ownStores = await prisma.adStore.findMany({
