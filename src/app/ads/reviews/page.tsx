@@ -163,14 +163,20 @@ export default function AdsReviewsPage() {
     };
   }, [stores, reviewMap, dayList, year, month]);
 
+  function priorReviewCount(storeId: number, day: number): number | undefined {
+    for (let d = day - 1; d >= 1; d--) {
+      const key = `${storeId}:${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const value = reviewMap.get(key);
+      if (value != null) return value;
+    }
+    const fromPrevMonth = prevByStore[String(storeId)];
+    return fromPrevMonth != null ? fromPrevMonth : undefined;
+  }
+
   function cell(storeId: number, day: number) {
     const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const count = reviewMap.get(`${storeId}:${date}`);
-    let prev = day === 1 ? prevByStore[String(storeId)] : undefined;
-    if (day > 1) {
-      const prevDate = `${year}-${String(month).padStart(2, "0")}-${String(day - 1).padStart(2, "0")}`;
-      prev = reviewMap.get(`${storeId}:${prevDate}`);
-    }
+    const prev = priorReviewCount(storeId, day);
     const delta = count != null && prev != null ? count - prev : null;
     return { count, delta };
   }
